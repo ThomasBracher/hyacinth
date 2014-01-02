@@ -1,0 +1,22 @@
+{
+  "name": "server-mock",
+  "version": "0.0.1",
+  "description": "high level mock of some server api on the browser side",
+  "main": "hyacinth.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mock",
+    "http",
+    "browser"
+  ],
+  "author": "Thomas Bracher",
+  "license": "MIT",
+  "devDependencies": {
+    "grunt-contrib-watch": "~0.5.3",
+    "grunt": "~0.4.2",
+    "grunt-mocha": "~0.4.7",
+    "grunt-contrib-jshint": "~0.8.0"
+  }
+}
