@@ -28,11 +28,11 @@
 			});
 		});
 
-		describe('Request, xmlhttp mock', function() {
+		describe('Request, XMLHttpRequest mock', function() {
 			var Request = Hyacinth.Request;
 
 			it('should respond to the simplest get request', function() {
-				var req = new Request({ async: false });
+				var req = new Request();
 				req.open('GET', '', false);
 				req.send(null);
 				assert.equal(req.status, 200);
@@ -78,7 +78,7 @@
 				});
 
 				it('should return null if everything is in order', function() {
-					var req = new Request({ async: false });
+					var req = new Request();
 					var e = req.open('GET', '', false);
 					assert.strictEqual(e, null);
 				});
@@ -86,7 +86,7 @@
 
 			describe('#send', function() {
 				it('should verify the string passed with the body param', function() {
-					var req = new Request({ method: 'POST', body: 'super', async: false });
+					var req = new Request({ method: 'POST', body: 'super' });
 					req.open('POST', '', false);
 					var e = req.send('random body');
 					assert.instanceOf(e, Error);
@@ -96,7 +96,7 @@
 				});
 
 				it('should return null when the right body is passed', function() {
-					var req = new Request({ method: 'POST', body: 'cool', async: false });
+					var req = new Request({ method: 'POST', body: 'cool' });
 					req.open('POST', '', false);
 					var e = req.send('cool');
 					assert.strictEqual(e, null);
@@ -112,11 +112,98 @@
 
 			describe('#responseText', function() {
 				it('should be setted once the #send is called', function() {
-					var req = new Request({ async: false, response: 'hello' });
+					var req = new Request({
+						response: {
+							body: 'hello'
+						}
+					});
 					req.open('GET', '', false);
 					req.send();
 					assert.equal(req.status, 200);
 					assert.equal(req.responseText, 'hello');
+				});
+
+				it('should be null when the request is not send', function() {
+					var req = new Request();
+					req.open('GET', '', true);
+					assert.strictEqual(req.responseText, undefined);
+				});
+
+				it('should not be setted until #complete is called in async', function() {
+					var req = new Request({
+						response: {
+							body: 'text'
+						}
+					});
+					req.open('GET', '', true);
+					req.send();
+					assert.strictEqual(req.responseText, undefined);
+					req.complete();
+					assert.equal(req.responseText, 'text');
+				});
+			});
+
+			describe('#getResponseHeader', function() {
+				it('should return the headers given in the spec', function() {
+					var req = new Request({
+						response: {
+							headers: {
+								'Content-Type': 'text/html'
+							}
+						}
+					});
+					req.open('GET', '', true);
+					req.send();
+					req.complete();
+					var content = req.getResponseHeader('Content-Type');
+					assert.equal(content, 'text/html');
+				});
+
+				it('should return null if the header does not exist', function() {
+					var req = new Request({
+						response: {
+							headers: {
+								'Content-Type': 'text/html'
+							}
+						}
+					});
+					req.open('GET', '', true);
+					req.send();
+					req.complete();
+					var content = req.getResponseHeader('Accept');
+					assert.strictEqual(content, null);
+				});
+
+				it('should return undefined when request not completed', function() {
+					var req = new Request({
+						response: {
+							headers: {
+								'Content-Type': 'text/html'
+							}
+						}
+					});
+					req.open('GET', '', true);
+					req.send();
+					var content = req.getResponseHeader('Content-Type');
+					assert.strictEqual(content, null);
+				});
+			});
+
+			describe('#getAllResponseHeaders', function() {
+				it('should return all headers given', function() {
+					var req = new Request({
+						response: {
+							headers: {
+								'Content-Type': 'application/json',
+								'Accept': 'application/json'
+							}
+						}
+					});
+					req.open('GET', '', true);
+					req.send();
+					req.complete();
+					var headers = req.getAllResponseHeaders();
+					assert.equal(headers, 'Content-Type: application/json\nAccept: application/json\n');
 				});
 			});
 
@@ -125,8 +212,7 @@
 					var req = new Request({
 						headers: {
 							'Content-Type': 'application/json'
-						},
-						async: false
+						}
 					});
 					req.open('GET', '', false);
 					req.setRequestHeader('Content-Type', 'text/html');
