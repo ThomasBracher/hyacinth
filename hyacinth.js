@@ -19,6 +19,7 @@
 	};
 
 	var Request = function(spec) {
+		this.readyState = 0;
 		this.status = 200;
 		this._spec = {
 			async: true,
@@ -34,11 +35,19 @@
 		}, this);
 	};
 
+	var changeReadyState = function(_this, newState) {
+		_this.readyState = newState;
+		if(typeof _this.onreadystatechange === 'function') {
+			_this.onreadystatechange.call(_this);
+		}
+	};
+
 	Request.prototype.open = function(method, url, async) {
 		var err = compare(this._spec.method, method, 'wrong method');
 		err = err || compare(this._spec.url, url, 'wrong url');
 		this._opened = true;
 		this._async = async;
+		changeReadyState(this, 1);
 		return err;
 	};
 
@@ -55,8 +64,11 @@
 	};
 
 	Request.prototype.complete = function() {
+		changeReadyState(this, 2);
+		this.responseText = '';
+		changeReadyState(this, 3);
 		this.responseText = this._spec.response.body;
-		this.readyState = 4;
+		changeReadyState(this, 4);
 	};
 
 	Request.prototype.setRequestHeader = function(key, value) {
@@ -64,7 +76,7 @@
 	};
 
 	Request.prototype.getResponseHeader = function(key) {
-		if(this.readyState > 2) {
+		if(this.readyState >= 2) {
 			if(this._spec.response.headers[key]) {
 				return this._spec.response.headers[key];
 			} else {

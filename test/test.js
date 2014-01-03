@@ -222,6 +222,69 @@
 					assert.equal(e.message, 'wrong headers');
 				});
 			});
+
+			describe('.readyState & .onreadystatechange', function() {
+				describe('readyState', function() {
+					it('should be 0 when creating the request', function() {
+						var req = new Request();
+						assert.strictEqual(req.readyState, 0);
+					});
+
+					it('should be 1 once the request is opened', function() {
+						var req = new Request();
+						req.open('GET', '', true);
+						assert.strictEqual(req.readyState, 1);
+					});
+
+					it('should be 4 when the request is completed', function() {
+						var req = new Request();
+						req.open('GET', '', true);
+						req.send();
+						req.complete();
+						assert.strictEqual(req.readyState, 4);
+					});
+				});
+
+				describe('onreadystatechange', function() {
+					it('should be called when the request is opened', function(done) {
+						var req = new Request();
+						req.onreadystatechange = function() {
+							assert.equal(this.readyState, 1);
+							done();
+						};
+						req.open('GET', '', true);
+					});
+
+					it('should be called thrice when the request is completed', function(done) {
+						var req = new Request({
+							response: {
+								headers: {
+									'Content-Type': 'application/json'
+								},
+								body: 'done'
+							}
+						});
+						var states = [];
+						req.open('GET', '', true);
+						req.send();
+						req.onreadystatechange = function() {
+							if(this.readyState === 2) {
+								assert.deepEqual(this.getResponseHeader('Content-Type'), 'application/json');
+								assert.strictEqual(this.responseText, undefined);
+								states.push(2);
+							} else if(this.readyState === 3) {
+								assert.strictEqual(this.responseText, '');
+								states.push(3);
+							} else if(this.readyState === 4) {
+								assert.equal(this.responseText, 'done');
+								assert.deepEqual(states, [2, 3]);
+								done();
+							}
+						};
+						req.complete();
+					});
+				});
+			});
 		});
 	});
 })();
