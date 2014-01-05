@@ -19,7 +19,7 @@
 		this.listeners[name] = this.listeners[name] || [];
 		if(typeof listener === 'function') {
 			this.listeners[name].push(listener);
-		} else {
+		} else if(typeof listener.handleEvent === 'function') {
 			this.listeners[name].push(listener.handleEvent.bind(listener));
 		}
 	};
@@ -40,10 +40,20 @@
 
 	function FakeRequest() {
 		EventTarget.apply(this);
-		FakeRequest.oncreate.call(null, this);
+		this.readyState = 0;
+		if(typeof FakeRequest.oncreate === 'function') {
+			FakeRequest.oncreate.call(null, this);
+		}
 	}
 
-	FakeRequest.prototype = Object.create(EventTarget.prototype);
+	FakeRequest.prototype = Object.create(EventTarget.prototype, {
+		constructor: {
+			value: FakeRequest,
+			enumerable: false,
+			writable: true,
+			configurable: true
+		}
+	});
 
 	FakeRequest.prototype.setAsync = function(async) {
 		if(async === undefined) {
@@ -56,7 +66,10 @@
 	FakeRequest.prototype.setReadyState = function(state) {
 		this.readyState = state;
 		if(typeof this.onreadystatechange === 'function') {
-			this.onreadystatechange.call(this);
+			try {
+				this.onreadystatechange.call(this);
+			} catch(e) {
+			}
 		}
 		this.dispatchEvent(new Event('readystatechange'));
 	};
@@ -147,6 +160,121 @@
 		if(typeof this.onSend === 'function') {
 			this.onSend.call(this, this);
 		}
+	};
+
+	FakeRequest.prototype.setResponseHeaders = function(headers) {
+		this.responseHeaders = headers;
+		if(this.async) {
+			this.setReadyState(FakeRequest.HEADERS_RECEIVED);
+		}
+		this.readyState = FakeRequest.HEADERS_RECEIVED;
+	};
+
+	FakeRequest.prototype.assertOpenAndHeadersReceived = function() {
+		if(this.readyState < FakeRequest.HEADERS_RECEIVED) {
+			throw new Error('xhr should be opened and headers received');
+		}
+	};
+
+	FakeRequest.prototype.responseNotSent = function() {
+		if(this.readyState >= FakeRequest.LOADING) {
+			throw new Error('xhr should not already been done');
+		}
+	};
+
+	var verifyResponseBodyType = function(body) {
+		if(typeof body !== 'string') {
+			throw new Error('body should be a string');
+		}
+	};
+
+	FakeRequest.prototype.setResponseBody = function(body) {
+		this.assertOpenAndHeadersReceived();
+		this.responseNotSent();
+		verifyResponseBodyType(body);
+		var chunksize = this.chunkSize || 10;
+		this.responseText = '';
+
+		while(this.responseText.length < body.length) {
+			if(this.async) {
+				this.setReadyState(FakeRequest.LOADING);
+			}
+			this.responseText += body.slice(this.responseText.length, this.responseText.length+ chunksize);
+		}
+
+		if(this.async) {
+			this.setReadyState(FakeRequest.DONE);
+		} else {
+			this.readyState = FakeRequest.DONE;
+		}
+	};
+
+	var statusTexts = {
+		100: "Continue",
+		101: "Switching Protocols",
+		200: "OK",
+		201: "Created",
+		202: "Accepted",
+		203: "Non-Authoritative Information",
+		204: "No Content",
+		205: "Reset Content",
+		206: "Partial Content",
+		300: "Multiple Choice",
+		301: "Moved Permanently",
+		302: "Found",
+		303: "See Other",
+		304: "Not Modified",
+		305: "Use Proxy",
+		307: "Temporary Redirect",
+		400: "Bad Request",
+		401: "Unauthorized",
+		402: "Payment Required",
+		403: "Forbidden",
+		404: "Not Found",
+		405: "Method Not Allowed",
+		406: "Not Acceptable",
+		407: "Proxy Authentication Required",
+		408: "Request Timeout",
+		409: "Conflict",
+		410: "Gone",
+		411: "Length Required",
+		412: "Precondition Failed",
+		413: "Request Entity Too Large",
+		414: "Request-URI Too Long",
+		415: "Unsupported Media Type",
+		416: "Requested Range Not Satisfiable",
+		417: "Expectation Failed",
+		422: "Unprocessable Entity",
+		500: "Internal Server Error",
+		501: "Not Implemented",
+		502: "Bad Gateway",
+		503: "Service Unavailable",
+		504: "Gateway Timeout",
+		505: "HTTP Version Not Supported"
+	};
+
+	FakeRequest.prototype.respond = function(status, headers, body) {
+		this.status = status || 200;
+		this.statusText = statusTexts[status];
+		this.setResponseHeaders(headers);
+		this.setResponseBody(body || '');
+	};
+
+	FakeRequest.prototype.getResponseHeader = function(header) {
+		if(this.readyState < FakeRequest.HEADERS_RECEIVED) {
+			return null;
+		} else {
+			header = header.toLowerCase();
+			var headers = {};
+			Object.keys(this.responseHeaders).forEach(function(key) {
+				headers[key.toLowerCase()] = this.responseHeaders[key];
+			}, this);
+			return headers[header] || null;
+		}
+	};
+
+	FakeRequest.prototype.getAllResponseHeaders = function() {
+		return '';
 	};
 
 	FakeRequest.OPENED = 1;

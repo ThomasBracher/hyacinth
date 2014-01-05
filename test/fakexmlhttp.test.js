@@ -8,7 +8,7 @@
 
 		it('should be a constructor', function() {
 			assert.isFunction(Request);
-			assert.equal(Request.prototype.constructor, hyacinth.EventTarget);
+			assert.equal(Request.prototype.constructor, Request);
 		});
 
 		it('should implements readyState constants', function() {
@@ -290,6 +290,344 @@
 				};
 
 				xhr.send('Data');
+			});
+		});
+
+		describe('setResponseHeaders', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should set request headers', function() {
+				var headers = { id: 42 };
+				xhr.open('GET', '/');
+				xhr.send();
+				xhr.setResponseHeaders(headers);
+
+				assert.deepEqual(xhr.responseHeaders, headers);
+			});
+
+			it('should call setReadyState with HEADERS_RECEIVED', function(done) {
+				var headers = { id: 42 };
+				xhr.open('GET', '/');
+				xhr.send();
+
+				xhr.setReadyState = function(state) {
+					assert.equal(state, Request.HEADERS_RECEIVED);
+					done();
+				};
+
+				xhr.setResponseHeaders(headers);
+			});
+
+			it('should not call setReadyState if not async', function() {
+				var headers = { id: 42 };
+				var spy = [];
+				xhr.open('GET', '/', false);
+				xhr.send();
+
+				xhr.setReadyState = function() {
+					spy.push(0);
+				};
+
+				xhr.setResponseHeaders(headers);
+
+				assert.deepEqual(spy, []);
+			});
+
+			it('should change readyState to HEADERS_RECEIVED if sync', function() {
+				var headers = { id: 42 };
+				xhr.open('GET', '/', false);
+				xhr.send();
+				xhr.setResponseHeaders(headers);
+
+				assert.equal(xhr.readyState, Request.HEADERS_RECEIVED);
+			});
+		});
+
+		describe('setResponseBodyAsync', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+				xhr.open('GET', '/');
+				xhr.send();
+				xhr.setResponseHeaders({});
+			});
+
+			it('should invoke setReadyState with LOADING state', function() {
+				var spy = [];
+				xhr.setReadyState = function(state) {
+					spy.push(state);
+				};
+
+				xhr.setResponseBody('some text goes in here ok?');
+
+				assert.equal(spy[0], Request.LOADING);
+			});
+
+			it('should invoke setReadyState for each 10 byte chunk', function() {
+				var spy = [];
+				xhr.setReadyState = function() {
+					spy.push('a');
+				};
+
+				xhr.setResponseBody('Some text goes in here ok?');
+
+				assert.lengthOf(spy, 4);
+			});
+
+			it('should invoke setReadyState for each x byte chunk', function() {
+				var spy = [];
+				xhr.setReadyState = function() {
+					spy.push('a');
+				};
+				xhr.chunkSize = 20;
+
+				xhr.setResponseBody('Some text goes in here ok?');
+
+				assert.lengthOf(spy, 3);
+			});
+
+			it('should invoke setReadyState with partial data', function() {
+				var pieces = [];
+				xhr.setReadyState = function() {
+					pieces.push(this.responseText);
+				};
+				xhr.chunkSize = 9;
+
+				xhr.setResponseBody('Some text goes in here ok?');
+
+				assert.equal(pieces[1], 'Some text');
+			});
+
+			it('call setReadyState with DONE state', function(done) {
+				xhr.setReadyState = function(state) {
+					if(state === Request.DONE) {
+						done();
+					}
+				};
+				xhr.setResponseBody('Some text goes in here ok?');
+			});
+
+			it('should throw an error if not opened', function() {
+				var xhr = new Request();
+
+				assert.throw(function() {
+					xhr.setResponseBody('');
+				});
+			});
+
+			it('should throw an error if no headers received', function() {
+				var xhr = new Request();
+				xhr.open('GET', '/');
+				xhr.send();
+				
+				assert.throw(function() {
+					xhr.setResponseBody('');
+				});
+			});
+
+			it('should throw an error if body was already sent', function() {
+				xhr.setResponseBody('');
+
+				assert.throw(function() {
+					xhr.setResponseBody('');
+				});
+			});
+
+			it('shoud throw an error if body is not a string', function() {
+				assert.throw(function() {
+					xhr.setResponseBody({});
+				});
+			});
+		});
+
+		describe('setResponseBodySync', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+				xhr.open('GET', '/', false);
+				xhr.send();
+				xhr.setResponseHeaders({});
+			});
+
+			it('should not throw any error', function() {
+				assert.doesNotThrow(function() {
+					xhr.setResponseBody('');
+				});
+			});
+
+			it('should set readyState to DONE', function() {
+				xhr.setResponseBody('');
+
+				assert.equal(xhr.readyState, Request.DONE);
+			});
+
+			it('should throw an error if responding to request twice', function() {
+				xhr.setResponseBody('');
+
+				assert.throw(function() {
+					xhr.setResponseBody('');
+				});
+			});
+
+			it('should not call readystatechange', function() {
+				var xhr = new Request();
+				var spy = [];
+				var callCount;
+				xhr.onreadystatechange = function() {
+					spy.push('a');
+				};
+				xhr.open('GET', '/', false);
+				xhr.send();
+				callCount = spy.length;
+				
+				xhr.setResponseHeaders({});
+				xhr.setResponseBody('hello world super body');
+
+				assert.equal(callCount, spy.length);
+			});
+
+			it('should simulate synchronous request', function() {
+				var xhr = new Request();
+
+				xhr.onSend = function() {
+					this.setResponseHeaders({});
+					this.setResponseBody('Oh Yeah');
+				};
+
+				xhr.open('GET', '/', false);
+				xhr.send();
+
+				assert.equal(xhr.responseText, 'Oh Yeah');
+			});
+		});
+
+		describe('respond', function() {
+			var xhr, spy;
+
+			beforeEach(function() {
+				spy = [];
+				xhr = new Request();
+				xhr.open('GET', '/');
+				xhr.onreadystatechange = function() {
+					if(this.readyState === Request.DONE) {
+						spy.push('a');
+					}
+				};
+				xhr.send();
+			});
+
+			it('should call readystate handle with readyState DONE once', function() {
+				xhr.respond(200, {}, '');
+
+				assert.lengthOf(spy, 1);
+			});
+
+			it('should default to status 200, no headers and blank body', function() {
+				xhr.respond();
+
+				assert.equal(xhr.status, 200);
+				assert.equal(xhr.getAllResponseHeaders(), '');
+				assert.equal(xhr.responseText, '');
+			});
+
+			it('should set status', function() {
+				xhr.respond(201);
+
+				assert.equal(xhr.status, 201);
+			});
+
+			it('should set status text', function() {
+				xhr.respond(201);
+
+				assert.equal(xhr.statusText, 'Created');
+			});
+
+			it('should set headers', function() {
+				var spy = [];
+				var responseHeaders = { some: 'headers', foo: 'bar' };
+				xhr.setResponseHeaders = function(header) {
+					this.readyState = Request.RECEIVED_HEADERS;
+					spy.push(header);
+				};
+				xhr.respond(200, responseHeaders);
+
+				assert.deepEqual(spy[0], responseHeaders);
+			});
+
+			it('should set response text', function() {
+				xhr.respond(200, {}, '"tis some body text');
+
+				assert.equal(xhr.responseText, '"tis some body text');
+			});
+
+			it('should complete request when onreadystatechange fails', function() {
+				var spy = [];
+				xhr.onreadystatechange = function() {
+					spy.push('called');
+					throw new Error();
+				};
+				xhr.respond(200, {}, '"tis some body text');
+
+				assert.lengthOf(spy, 4);
+			});
+		});
+
+		describe('getResponseHeader', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should return null if request is not sent', function() {
+				xhr.open('GET', '/');
+
+				assert.isNull(xhr.getResponseHeader('Content-Type'));
+			});
+
+			it('should return null if headers are not set', function() {
+				xhr.open('GET', '/');
+				xhr.send();
+
+				assert.isNull(xhr.getResponseHeader('Set-Cookie'));
+			});
+
+			it('should return header value', function() {
+				xhr.open('GET', '/');
+				xhr.send();
+				xhr.setResponseHeaders({ 'Content-Type': 'text/html' });
+
+				assert.equal(xhr.getResponseHeader('Content-Type'), 'text/html');
+			});
+
+			it('should return header if sync', function() {
+				xhr.open('GET', '/', false);
+				xhr.send();
+				xhr.setResponseHeaders({ 'Content-Type': 'text/html' });
+
+				assert.equal(xhr.getResponseHeader('Content-Type'), 'text/html');
+			});
+
+			it('should return null if header not setted', function() {
+				xhr.open('GET', '/');
+				xhr.send();
+				xhr.setResponseHeaders({});
+
+				assert.isNull(xhr.getResponseHeader('Content-Type'));
+			});
+
+			it('should return headers case insensitive', function() {
+				xhr.open('GET', '/');
+				xhr.send();
+				xhr.setResponseHeaders({ 'Content-Type': 'text/html' });
+
+				assert.equal(xhr.getResponseHeader('content-type'), 'text/html');
 			});
 		});
 	});
