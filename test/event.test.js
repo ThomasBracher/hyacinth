@@ -88,6 +88,20 @@
 			assert.deepEqual(spy.called, [0, 2]);
 		});
 
+		it('should remove event listeners of type listeners', function() {
+			var spy = new CallSpy();
+			var Listener = function(key) { this.handleEvent = spy.get(key); };
+			var listeners = [ new Listener(0), new Listener(1), new Listener(2) ];
+			target.addEventListener('dummy', listeners[0]);
+			target.addEventListener('dummy', listeners[1]);
+			target.addEventListener('dummy', listeners[2]);
+			target.removeEventListener('dummy', listeners[1]);
+
+			target.dispatchEvent(new Event('dummy'));
+
+			assert.deepEqual(spy.called, [0, 2]);
+		});
+
 		it('should return false when event.preventDefault is not called', function() {
 			target.addEventListener('dummy', function() {});
 			var result = target.dispatchEvent(new Event('dummy'));

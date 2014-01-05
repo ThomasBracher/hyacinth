@@ -11,16 +11,21 @@
 		this.defaultPrevented = true;
 	};
 
+	var progressEvent = function(total, loaded) {
+		var e = new Event('progress');
+		e.total = total;
+		e.loaded = loaded;
+		return e;
+	};
+
 	function EventTarget() {
 		this.listeners = {};
 	}
 
 	EventTarget.prototype.addEventListener = function(name, listener) {
 		this.listeners[name] = this.listeners[name] || [];
-		if(typeof listener === 'function') {
+		if(typeof listener === 'function' || typeof listener.handleEvent === 'function') {
 			this.listeners[name].push(listener);
-		} else if(typeof listener.handleEvent === 'function') {
-			this.listeners[name].push(listener.handleEvent.bind(listener));
 		}
 	};
 
@@ -33,14 +38,21 @@
 	EventTarget.prototype.dispatchEvent = function(e) {
 		var listeners = this.listeners[e.type] || [];
 		listeners.forEach(function(listener) {
-			listener.call(this, e);
+			if(typeof listener === 'function') {
+				listener.call(this, e);
+			} else {
+				listener.handleEvent.call(listener, e);
+			}
 		}, this);
 		return !!e.defaultPrevented;
 	};
 
 	function FakeRequest() {
 		EventTarget.apply(this);
-		this.readyState = 0;
+		this.readyState = FakeRequest.UNSENT;
+		this.responseXML = null;
+		this.status = 0;
+		this.upload = new EventTarget();
 		if(typeof FakeRequest.oncreate === 'function') {
 			FakeRequest.oncreate.call(null, this);
 		}
@@ -72,6 +84,10 @@
 			}
 		}
 		this.dispatchEvent(new Event('readystatechange'));
+		if(state === FakeRequest.DONE) {
+			this.upload.dispatchEvent(new Event('load'));
+			this.upload.dispatchEvent(progressEvent(100, 100));
+		}
 	};
 
 	FakeRequest.prototype.open = function(method, url, async, user, password) {
@@ -162,6 +178,25 @@
 		}
 	};
 
+	FakeRequest.prototype.abort = function() {
+		this.aborted = true;
+		this.responseText = null;
+		this.errorFlag = true;
+		this.requestHeaders = {};
+
+		if(this.readyState > FakeRequest.UNSENT && this.sendFlag) {
+			this.setReadyState(FakeRequest.DONE);
+			this.sendFlag = false;
+		}
+
+		this.readyState = FakeRequest.UNSENT;
+
+		if(typeof this.onerror === 'function') {
+			this.onerror.call(this);
+		}
+		this.upload.dispatchEvent(new Event('abort'));
+	};
+
 	FakeRequest.prototype.setResponseHeaders = function(headers) {
 		this.responseHeaders = headers;
 		if(this.async) {
@@ -200,6 +235,11 @@
 				this.setReadyState(FakeRequest.LOADING);
 			}
 			this.responseText += body.slice(this.responseText.length, this.responseText.length+ chunksize);
+		}
+
+		if(this.responseText !== '') {
+			var parser = new DOMParser();
+			this.responseXML = parser.parseFromString(this.responseText, this.getResponseHeader('Content-Type') || 'text/xml');
 		}
 
 		if(this.async) {
@@ -274,9 +314,26 @@
 	};
 
 	FakeRequest.prototype.getAllResponseHeaders = function() {
-		return '';
+		if(this.readyState < FakeRequest.HEADERS_RECEIVED){
+			return null;
+		}
+		var inlineArray = Object.keys(this.responseHeaders || {}).map(function(header) {
+			return header + ': ' + this.responseHeaders[header] + '\r\n';
+		}, this);
+		return inlineArray.join('');
 	};
 
+	FakeRequest.prototype.uploadProgress = function(spec) {
+		this.upload.dispatchEvent(progressEvent(spec.total, spec.loaded));
+	};
+
+	FakeRequest.prototype.uploadError = function(err) {
+		var e = new Event('error');
+		e.detail = err;
+		this.upload.dispatchEvent(e);
+	};
+
+	FakeRequest.UNSENT = 0;
 	FakeRequest.OPENED = 1;
 	FakeRequest.HEADERS_RECEIVED = 2;
 	FakeRequest.LOADING = 3;
