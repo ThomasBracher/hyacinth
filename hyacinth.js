@@ -77,10 +77,11 @@
 		this.uploadEvents = false;
 		this.requestHeaders = {};
 		this.requestBody = null;
+		this.timeout = 0;
 		this.readyState = FakeRequest.UNSENT;
 		this.responseXML = null;
 		this.status = 0;
-		this.upload = new EventTarget();
+		this.upload = new XHREventTarget();
 		if(typeof FakeRequest.oncreate === 'function') {
 			FakeRequest.oncreate.call(null, this);
 		}
@@ -96,6 +97,21 @@
 	});
 
 	FakeRequest.prototype.setAsync = function(async) {
+		if(async === false) {
+			if(this.timeout !== 0) {
+				throw new Error('InvalidAccessError');
+			}
+			Object.defineProperty(this, 'timeout', {
+				configurable: false,
+				enumerable: true,
+				set: function() {
+					throw new Error('InvalidAccessError');
+				},
+				get: function() {
+					return 0;
+				}
+			});
+		}
 		if(async === undefined) {
 			this.async = true;
 		} else {
@@ -106,10 +122,6 @@
 	FakeRequest.prototype.setReadyState = function(state) {
 		this.readyState = state;
 		this.dispatchEvent(new Event('readystatechange'));
-		if(state === FakeRequest.DONE) {
-			this.upload.dispatchEvent(new Event('load'));
-			this.upload.dispatchEvent(progressEvent(100, 100));
-		}
 	};
 
 	FakeRequest.prototype.open = function(method, url, async, user, password) {
@@ -185,30 +197,46 @@
 		}
 	};
 
-	FakeRequest.prototype.defaultMimeIfNone = function() {
+	FakeRequest.prototype.setMimeAndEncoding = function() {
 		if(!this.requestHeaders['Content-Type']) {
-			this.requestHeaders['Content-Type'] = 'text/plain';
+			this.requestHeaders['Content-Type'] = 'text/plain; charset=utf-8';
+		} else {
+			var content = this.requestHeaders['Content-Type'];
+			var matcher = /(?:charset=)(\w*)/i;
+			var charset = matcher.exec(content);
+			var utf = /utf\-8/i;
+			if(charset && !charset[1].match(utf)) {
+				this.requestHeaders['Content-Type'] = content.replace(charset[1], 'utf-8');
+			} else {
+				this.requestHeaders['Content-Type'] += '; charset=utf-8';
+			}
 		}
-		this.requestHeaders['Content-Type'] += ';charset=utf-8';
 	};
 
 	FakeRequest.prototype.setRequestBody = function(body) {
-		if(this.method === 'POST') {
-			this.requestBody = body;
+		if(this.method !== 'GET' && this.method !== 'HEAD') {
+			this.requestBody = body || null;
 		} else {
 			this.requestBody = null;
+		}
+		if(this.requestBody === null) {
+			this.uploadComplete = true;
 		}
 	};
 
 	FakeRequest.prototype.send = function(data) {
 		this.openedAndNotSend();
-		this.defaultMimeIfNone();
+		this.setMimeAndEncoding();
 		this.setRequestBody(data);
 		this.errorFlag = false;
 		if(this.async) {
 			this.sendFlag = true;
 		}
 		this.setReadyState(FakeRequest.OPENED);
+		this.dispatchEvent(new Event('loadstart'));
+		if(this.uploadComplete === false) {
+			this.upload.dispatchEvent(new Event('loadstart'));
+		}
 		if(typeof this.onSend === 'function') {
 			this.onSend.call(this, this);
 		}
@@ -216,21 +244,23 @@
 
 	FakeRequest.prototype.abort = function() {
 		this.aborted = true;
-		this.responseText = null;
 		this.errorFlag = true;
-		this.requestHeaders = {};
+		this.async = true;
 
-		if(this.readyState > FakeRequest.UNSENT && this.sendFlag) {
+		if(this.sendFlag === true && this.readyState !== FakeRequest.DONE) {
 			this.setReadyState(FakeRequest.DONE);
-			this.sendFlag = false;
+			this.dispatchEvent(new Event('progress'));
+			this.dispatchEvent(new Event('abort'));
+			this.dispatchEvent(new Event('loadend'));
+			if(this.uploadComplete === false) {
+				this.uploadComplete = true;
+				this.upload.dispatchEvent(new Event('progress'));
+				this.upload.dispatchEvent(new Event('abort'));
+				this.upload.dispatchEvent(new Event('loadend'));
+			}
 		}
-
+		this.sendFlag = false;
 		this.readyState = FakeRequest.UNSENT;
-
-		if(typeof this.onerror === 'function') {
-			this.onerror.call(this);
-		}
-		this.upload.dispatchEvent(new Event('abort'));
 	};
 
 	FakeRequest.prototype.setResponseHeaders = function(headers) {
@@ -283,6 +313,9 @@
 		} else {
 			this.readyState = FakeRequest.DONE;
 		}
+		this.dispatchEvent(new Event('progress'));
+		this.dispatchEvent(new Event('load'));
+		this.dispatchEvent(new Event('loadend'));
 	};
 
 	var statusTexts = {
@@ -329,7 +362,15 @@
 		505: "HTTP Version Not Supported"
 	};
 
+	FakeRequest.prototype.completeUpload = function() {
+		this.uploadComplete = true;
+		this.upload.dispatchEvent(new Event('progress'));
+		this.upload.dispatchEvent(new Event('load'));
+		this.upload.dispatchEvent(new Event('loadend'));
+	};
+
 	FakeRequest.prototype.respond = function(status, headers, body) {
+		this.completeUpload();
 		this.status = status || 200;
 		this.statusText = statusTexts[status];
 		this.setResponseHeaders(headers);
