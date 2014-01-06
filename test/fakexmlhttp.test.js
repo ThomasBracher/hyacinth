@@ -11,12 +11,56 @@
 			assert.equal(Request.prototype.constructor, Request);
 		});
 
+		it('should inherits xhrEventTarget', function() {
+			var xhr = new Request();
+
+			assert.instanceOf(xhr, hyacinth.XHREventTarget);
+		});
+
+		it('should start with null onreadystatechange handler', function() {
+			var xhr = new Request();
+
+			assert.isNull(xhr.onreadystatechange);
+		});
+
 		it('should implements readyState constants', function() {
 			assert.strictEqual(Request.UNSENT, 0);
 			assert.equal(Request.OPENED, 1);
 			assert.equal(Request.HEADERS_RECEIVED, 2);
 			assert.equal(Request.LOADING, 3);
 			assert.equal(Request.DONE, 4);
+		});
+
+		it('should have sendFlag initially unset', function() {
+			var xhr = new Request();
+
+			assert.isFalse(xhr.sendFlag);
+		});
+
+		it('should have errorFlag initially unset', function() {
+			var xhr = new Request();
+
+			assert.isFalse(xhr.errorFlag);
+		});
+
+		it('should have request headers initially empty', function() {
+			var xhr = new Request();
+
+			assert.deepEqual(xhr.requestHeaders, {});
+		});
+
+		it('should have a request body initially null', function() {
+			var xhr = new Request();
+
+			assert.isNull(xhr.requestBody);
+		});
+
+		it('should have synchronous, upload complete and upload events flags unset', function() {
+			var xhr = new Request();
+
+			assert.isFalse(xhr.async);
+			assert.isFalse(xhr.uploadComplete);
+			assert.isFalse(xhr.uploadEvents);
 		});
 
 		it('should call on create and pass the object', function() {
@@ -37,6 +81,33 @@
 
 			it('should be a method', function() {
 				assert.isFunction(xhr.open);
+			});
+
+			it('should set standard http methods to their uppercase match', function() {
+				var methods = [ 'DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT' ];
+				var entries = [ 'DeLeTe', 'gEt', 'hEad', 'OPtions', 'POst', 'PuT' ];
+				methods.forEach(function(method, index) {
+					var xhr = new Request();
+					xhr.open(entries[index], '/');
+
+					assert.equal(xhr.method, method);
+				});
+			});
+
+			it('should set the method exactly when it is unknown', function() {
+				xhr.open('RefVRvd', '/');
+
+				assert.equal(xhr.method, 'RefVRvd');
+			});
+
+			it('should throw an error if the method is one of CONNECT, TRACE or TRACK', function() {
+				var forbidden = [ 'CONNECT', 'TraCe', 'trACk' ];
+				forbidden.forEach(function(method) {
+					var xhr = new Request();
+					assert.throw(function() {
+						xhr.open(method, '/');
+					}, 'SecurityError');
+				});
 			});
 
 			it('should set properties on object', function() {
@@ -74,33 +145,32 @@
 				assert.deepEqual(xhr.requestHeaders, {});
 			});
 
-			it('should set readystate to OPENED', function() {
-				xhr.open('GET', 'url');
-
-				assert.equal(xhr.readyState, Request.OPENED);
-			});
-
 			it('should set send flag to false', function() {
 				xhr.open('GET', 'url');
 
 				assert.isFalse(xhr.sendFlag);
 			});
 
-			it('should call onreadystatechange handler before headers after the rest', function(done) {
-				xhr.onreadystatechange = function() {
-					assert.equal(this, xhr);
-					assert.equal(this.method, 'GET');
-					assert.equal(this.url, 'url');
-					assert.isTrue(this.async);
-					assert.isUndefined(this.user);
-					assert.isUndefined(this.password);
-					assert.isNull(this.responseText);
-					assert.isUndefined(this.requestHeaders);
-					assert.equal(this.readyState, Request.OPENED);
-					assert.isFalse(this.sendFlag);
-					done();
-				};
+			it('should set response entity body to null', function() {
+				xhr.open('GET', '/');
+
+				assert.isNull(xhr.responseEntityBody);
+			});
+
+			it('should set readystate to OPENED', function() {
 				xhr.open('GET', 'url');
+
+				assert.equal(xhr.readyState, Request.OPENED);
+			});
+
+			it('should fire readystatechange event', function() {
+				var called = false;
+				xhr.onreadystatechange = function() {
+					called = true;
+				};
+				xhr.open('GET', '/');
+
+				assert.isTrue(called);
 			});
 		});
 
@@ -116,7 +186,7 @@
 				var xhr = new Request();
 				assert.throw(function() {
 					xhr.setRequestHeader();
-				});
+				}, 'InvalidStateError');
 			});
 
 			it('should throw an exception if send flag is true', function() {
@@ -124,35 +194,36 @@
 
 				assert.throw(function() {
 					xhr.setRequestHeader();
-				});
+				}, 'InvalidStateError');
 			});
 
-			it('should disallow unsafe headers', function() {
+			it('should disallow unsafe headers, case-insensitive', function() {
 				var throwHeader = function(header) {
 					assert.throw(function() {
 						xhr.setRequestHeader(header, '');
 					}, Error, header, header);
 				};
 
-				throwHeader('Accept-Charset');
-				throwHeader('Accept-Encoding');
-				throwHeader('Connection');
-				throwHeader('Content-Length');
-				throwHeader('Cookie');
-				throwHeader('Cookie2');
-				throwHeader('Content-Transfer-Encoding');
-				throwHeader('Date');
-				throwHeader('Expect');
-				throwHeader('Host');
-				throwHeader('Keep-Alive');
-				throwHeader('Referer');
-				throwHeader('TE');
-				throwHeader('Transfer-Encoding');
-				throwHeader('Upgrade');
-				throwHeader('User-Agent');
-				throwHeader('Via');
-				throwHeader('Proxy-Oops');
-				throwHeader('Sec-Oops');
+				throwHeader('Accept-CHARSET');
+				throwHeader('ACCEPT-Encoding');
+				throwHeader('ConneCTION');
+				throwHeader('Content-LENGTH');
+				throwHeader('CooKIE');
+				throwHeader('CooKIE2');
+				throwHeader('Content-TRANSFER-Encoding');
+				throwHeader('DatE');
+				throwHeader('HosT');
+				throwHeader('KeeP-Alive');
+				throwHeader('RefErer');
+				throwHeader('Te');
+				throwHeader('TRansfer-Encoding');
+				throwHeader('UpGrade');
+				throwHeader('UseR-Agent');
+				throwHeader('ViA');
+				throwHeader('PrOxy-Oops');
+				throwHeader('ProXy-otherS');
+				throwHeader('SeC-Oops');
+				throwHeader('SEc-sUpSon');
 			});
 
 			it('should set header and value', function() {
@@ -165,11 +236,11 @@
 				xhr.setRequestHeader('X-Fake', 'Oh');
 				xhr.setRequestHeader('X-Fake', 'yeah!');
 
-				assert.deepEqual(xhr.requestHeaders, { 'X-Fake': 'Oh,yeah!' });
+				assert.deepEqual(xhr.requestHeaders, { 'X-Fake': 'Oh, yeah!' });
 			});
 		});
 
-		describe('open', function() {
+		describe('send', function() {
 			var xhr;
 
 			beforeEach(function() {
@@ -565,17 +636,6 @@
 				xhr.respond(200, {}, '"tis some body text');
 
 				assert.equal(xhr.responseText, '"tis some body text');
-			});
-
-			it('should complete request when onreadystatechange fails', function() {
-				var spy = [];
-				xhr.onreadystatechange = function() {
-					spy.push('called');
-					throw new Error();
-				};
-				xhr.respond(200, {}, '"tis some body text');
-
-				assert.lengthOf(spy, 4);
 			});
 		});
 

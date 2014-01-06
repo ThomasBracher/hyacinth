@@ -44,11 +44,39 @@
 				listener.handleEvent.call(listener, e);
 			}
 		}, this);
+		if(typeof this['on' + e.type] === 'function') {
+			this['on' + e.type].call(this, e);
+		}
 		return !!e.defaultPrevented;
 	};
 
-	function FakeRequest() {
+	function XHREventTarget() {
 		EventTarget.apply(this);
+		var events = [ 'abort', 'error', 'load', 'loadend', 'loadstart', 'progress', 'timeout' ];
+		events.forEach(function(event) {
+			this['on' + event] = null;
+		}, this);
+	}
+
+	XHREventTarget.prototype = Object.create(EventTarget.prototype, {
+		constructor: {
+			value: XHREventTarget,
+			enumerable: false,
+			writable: true,
+			configurable: true
+		}
+	});
+
+	function FakeRequest() {
+		XHREventTarget.apply(this);
+		this.onreadystatechange = null;
+		this.sendFlag = false;
+		this.errorFlag = false;
+		this.async = false;
+		this.uploadComplete = false;
+		this.uploadEvents = false;
+		this.requestHeaders = {};
+		this.requestBody = null;
 		this.readyState = FakeRequest.UNSENT;
 		this.responseXML = null;
 		this.status = 0;
@@ -58,7 +86,7 @@
 		}
 	}
 
-	FakeRequest.prototype = Object.create(EventTarget.prototype, {
+	FakeRequest.prototype = Object.create(XHREventTarget.prototype, {
 		constructor: {
 			value: FakeRequest,
 			enumerable: false,
@@ -77,12 +105,6 @@
 
 	FakeRequest.prototype.setReadyState = function(state) {
 		this.readyState = state;
-		if(typeof this.onreadystatechange === 'function') {
-			try {
-				this.onreadystatechange.call(this);
-			} catch(e) {
-			}
-		}
 		this.dispatchEvent(new Event('readystatechange'));
 		if(state === FakeRequest.DONE) {
 			this.upload.dispatchEvent(new Event('load'));
@@ -91,7 +113,15 @@
 	};
 
 	FakeRequest.prototype.open = function(method, url, async, user, password) {
-		this.method = method;
+		var methods = /connect|delete|get|head|options|post|put|trace|track/i;
+		if(method.match(methods)) {
+			this.method = method.toUpperCase();
+		} else {
+			this.method = method;
+		}
+		if(this.method.match(/CONNECT|TRACE|TRACK/)) {
+			throw new Error('SecurityError');
+		}
 		this.url = url;
 		this.setAsync(async);
 		this.user = user;
@@ -99,43 +129,49 @@
 
 		this.responseText = null;
 		this.sendFlag = false;
-		this.setReadyState(FakeRequest.OPENED);
 		this.requestHeaders = {};
+		this.responseEntityBody = null;
+		this.setReadyState(FakeRequest.OPENED);
 	};
 
 	var unsafeHeaders = {
-		'Accept-Charset': true,
-		'Accept-Encoding': true,
-		'Connection': true,
-		'Content-Length': true,
-		'Cookie': true,
-		'Cookie2': true,
-		'Content-Transfer-Encoding': true,
-		'Date': true,
-		'Expect': true,
-		'Host': true,
-		'Keep-Alive': true,
-		'Referer': true,
+		'ACCEPT-CHARSET': true,
+		'ACCEPT-ENCODING': true,
+		'CONNECTION': true,
+		'CONTENT-LENGTH': true,
+		'COOKIE': true,
+		'COOKIE2': true,
+		'CONTENT-TRANSFER-ENCODING': true,
+		'DATE': true,
+		'EXPECT': true,
+		'HOST': true,
+		'KEEP-ALIVE': true,
+		'REFERER': true,
 		'TE': true,
-		'Transfer-Encoding': true,
-		'Upgrade': true,
-		'User-Agent': true,
-		'Via': true,
-		'Proxy-Oops': true,
-		'Sec-Oops': true,
+		'TRANSFER-ENCODING': true,
+		'UPGRADE': true,
+		'USER-AGENT': true,
+		'VIA': true,
 	};
 
 	FakeRequest.prototype.openedAndNotSend = function() {
 		if(this.readyState !== FakeRequest.OPENED) {
-			throw new Error('readyState should be OPENED');
+			throw new Error('InvalidStateError');
 		} else if(this.sendFlag === true) {
-			throw new Error('request should not be send');
+			throw new Error('InvalidStateError');
 		}
+	};
+
+	var startWithProxyOrSec = function(header) {
+		var reg = /^Proxy\-|^Sec\-/i;
+		return reg.test(header);
 	};
 
 	FakeRequest.prototype.shouldRegisterHeader = function(header) {
 		this.openedAndNotSend();
-		if(unsafeHeaders[header] === true) {
+		if(unsafeHeaders[header.toUpperCase()] === true) {
+			throw new Error(header + ' is unsafe');
+		} else if(startWithProxyOrSec(header)) {
 			throw new Error(header + ' is unsafe');
 		}
 	};
@@ -145,7 +181,7 @@
 		if(this.requestHeaders[header] === undefined) {
 			this.requestHeaders[header] = value;
 		} else {
-			this.requestHeaders[header] += ',' + value;
+			this.requestHeaders[header] += ', ' + value;
 		}
 	};
 
@@ -341,6 +377,7 @@
 
 	hyacinth.EventTarget = EventTarget;
 	hyacinth.Event = Event;
+	hyacinth.XHREventTarget = XHREventTarget;
 	hyacinth.FakeXMLHttpRequest = FakeRequest;
 	hyacinth.version = '0.0.1-dev';
 })();
