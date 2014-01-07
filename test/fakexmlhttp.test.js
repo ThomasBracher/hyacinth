@@ -436,20 +436,20 @@
 				xhr.send('Data');
 			});
 
-			it('should dispatch onSend callback if set with request as argument', function(done) {
+			it('should dispatch onsend callback if set with request as argument', function(done) {
 				xhr.open('POST', '/', true);
-				xhr.onSend = function(arg) {
-					assert.equal(arg, xhr);
+				xhr.onsend = function(e) {
+					assert.equal(e.xhr, xhr);
 					done();
 				};
 
 				xhr.send('Data');
 			});
 			
-			it('should dispatch onSend when async', function(done) {
+			it('should dispatch onsend when async', function(done) {
 				xhr.open('POST', '/', false);
-				xhr.onSend = function(arg) {
-					assert.equal(arg, xhr);
+				xhr.onsend = function(e) {
+					assert.equal(e.xhr, xhr);
 					done();
 				};
 
@@ -462,13 +462,6 @@
 
 			beforeEach(function() {
 				xhr = new Request();
-			});
-
-			it('should set aborted flag to true', function() {
-				xhr.aborted = false;
-				xhr.abort();
-
-				assert.isTrue(xhr.aborted);
 			});
 
 			it('should set the async flag', function() {
@@ -879,7 +872,7 @@
 			it('should simulate synchronous request', function() {
 				var xhr = new Request();
 
-				xhr.onSend = function() {
+				xhr.onsend = function() {
 					this.setResponseHeaders({});
 					this.setResponseBody('Oh Yeah');
 				};

@@ -22,31 +22,61 @@
 		this.listeners = {};
 	}
 
+	var isListener = function(spec) {
+		return typeof spec.handleEvent === 'function';
+	};
+
+	var isFunction = function(spec) {
+		return typeof spec === 'function';
+	};
+
+	function Listener(target, spec) {
+		this._origin = spec;
+		if(isListener(spec)) {
+			this.handleEvent = function() {
+				spec.handleEvent.apply(spec, arguments);
+			};
+		} else if(isFunction(spec)) {
+			this.handleEvent = function() {
+				spec.apply(target, arguments);
+			};
+		}
+	}
+
+	EventTarget.prototype.convertListener = function(listener) {
+		return new Listener(this, listener);
+	};
+
 	EventTarget.prototype.addEventListener = function(name, listener) {
 		this.listeners[name] = this.listeners[name] || [];
-		if(typeof listener === 'function' || typeof listener.handleEvent === 'function') {
-			this.listeners[name].push(listener);
-		}
+		this.listeners[name].push(this.convertListener(listener));
 	};
 
 	EventTarget.prototype.removeEventListener = function(name, listener) {
 		var listeners = this.listeners[name] || [];
-		var index = listeners.indexOf(listener);
+		var origins = listeners.map(function(listener) {
+			return listener._origin;
+		});
+		var index = origins.indexOf(listener);
 		return listeners.splice(index, 1);
 	};
 
-	EventTarget.prototype.dispatchEvent = function(e) {
+	EventTarget.prototype.dispatchEventForListeners = function(e) {
 		var listeners = this.listeners[e.type] || [];
 		listeners.forEach(function(listener) {
-			if(typeof listener === 'function') {
-				listener.call(this, e);
-			} else {
-				listener.handleEvent.call(listener, e);
-			}
+			listener.handleEvent.call(this, e);
 		}, this);
+	};
+
+	EventTarget.prototype.dispatchEventForProperties = function(e) {
 		if(typeof this['on' + e.type] === 'function') {
 			this['on' + e.type].call(this, e);
 		}
+	};
+
+	EventTarget.prototype.dispatchEvent = function(e) {
+		this.dispatchEventForListeners(e);
+		this.dispatchEventForProperties(e);
 		return !!e.defaultPrevented;
 	};
 
@@ -225,6 +255,19 @@
 		}
 	};
 
+	FakeRequest.prototype.startUpAndDownload = function() {
+		this.dispatchEvent(new Event('loadstart'));
+		if(this.uploadComplete === false) {
+			this.upload.dispatchEvent(new Event('loadstart'));
+		}
+	};
+
+	FakeRequest.prototype.triggerSentEvent = function() {
+		var e = new Event('send');
+		e.xhr = this;
+		this.dispatchEvent(e);
+	};
+
 	FakeRequest.prototype.send = function(data) {
 		this.openedAndNotSend();
 		this.setMimeAndEncoding();
@@ -234,17 +277,11 @@
 			this.sendFlag = true;
 		}
 		this.setReadyState(FakeRequest.OPENED);
-		this.dispatchEvent(new Event('loadstart'));
-		if(this.uploadComplete === false) {
-			this.upload.dispatchEvent(new Event('loadstart'));
-		}
-		if(typeof this.onSend === 'function') {
-			this.onSend.call(this, this);
-		}
+		this.startUpAndDownload();
+		this.triggerSentEvent();
 	};
 
 	FakeRequest.prototype.abort = function() {
-		this.aborted = true;
 		this.errorFlag = true;
 
 		this.status = 0;
@@ -387,8 +424,12 @@
 		this.setResponseBody(body || '');
 	};
 
+	FakeRequest.prototype.responseAvailable = function() {
+		return this.readyState < FakeRequest.HEADERS_RECEIVED || this.errorFlag === true;
+	};
+
 	FakeRequest.prototype.getResponseHeader = function(header) {
-		if(this.readyState < FakeRequest.HEADERS_RECEIVED || this.errorFlag === true) {
+		if(this.responseAvailable()) {
 			return null;
 		} else {
 			if(/set-cookie2?/i.test(header)) {
@@ -404,7 +445,7 @@
 	};
 
 	FakeRequest.prototype.getAllResponseHeaders = function() {
-		if(this.readyState < FakeRequest.HEADERS_RECEIVED || this.errorFlag === true) {
+		if(this.responseAvailable()) {
 			return '';
 		}
 		var inlineArray = Object.keys(this.responseHeaders || {}).map(function(header) {
@@ -415,16 +456,6 @@
 			}
 		}, this);
 		return inlineArray.join('');
-	};
-
-	FakeRequest.prototype.uploadProgress = function(spec) {
-		this.upload.dispatchEvent(progressEvent(spec.total, spec.loaded));
-	};
-
-	FakeRequest.prototype.uploadError = function(err) {
-		var e = new Event('error');
-		e.detail = err;
-		this.upload.dispatchEvent(e);
 	};
 
 	FakeRequest.UNSENT = 0;
