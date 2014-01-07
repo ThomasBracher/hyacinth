@@ -677,56 +677,6 @@
 			});
 		});
 		
-		describe('status', function() {
-			var xhr;
-
-			beforeEach(function() {
-				xhr = new Request();
-			});
-
-			it('should be 0 if UNSENT', function() {
-				assert.strictEqual(xhr.status, 0);
-			});
-
-			it('should be 0 if OPENED', function() {
-				xhr.open('GET', '/', false);
-				assert.strictEqual(xhr.status, 0);
-				xhr.send();
-				assert.strictEqual(xhr.status, 0);
-			});
-
-			it('should be 0 if aborted (error flag set)', function() {
-				xhr.status = 234;
-				xhr.abort();
-				assert.strictEqual(xhr.status, 0);
-			});
-		});
-
-		describe('status Text', function() {
-			var xhr;
-
-			beforeEach(function() {
-				xhr = new Request();
-			});
-
-			it('should be empty string if UNSENT', function() {
-				assert.strictEqual(xhr.statusText, '');
-			});
-
-			it('should be empty string if OPENED', function() {
-				xhr.open('GET', '/', true);
-				assert.strictEqual(xhr.statusText, '');
-				xhr.send();
-				assert.strictEqual(xhr.statusText, '');
-			});
-
-			it('should be empty string if aborted (error flag is set)', function() {
-				xhr.statusText = 'hello world';
-				xhr.abort();
-				assert.strictEqual(xhr.statusText, '');
-			});
-		});
-		
 		describe('setResponseHeaders', function() {
 			var xhr;
 
@@ -1030,6 +980,56 @@
 			});
 		});
 
+		describe('status', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should be 0 if UNSENT', function() {
+				assert.strictEqual(xhr.status, 0);
+			});
+
+			it('should be 0 if OPENED', function() {
+				xhr.open('GET', '/', false);
+				assert.strictEqual(xhr.status, 0);
+				xhr.send();
+				assert.strictEqual(xhr.status, 0);
+			});
+
+			it('should be 0 if aborted (error flag set)', function() {
+				xhr.status = 234;
+				xhr.abort();
+				assert.strictEqual(xhr.status, 0);
+			});
+		});
+
+		describe('status Text', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should be empty string if UNSENT', function() {
+				assert.strictEqual(xhr.statusText, '');
+			});
+
+			it('should be empty string if OPENED', function() {
+				xhr.open('GET', '/', true);
+				assert.strictEqual(xhr.statusText, '');
+				xhr.send();
+				assert.strictEqual(xhr.statusText, '');
+			});
+
+			it('should be empty string if aborted (error flag is set)', function() {
+				xhr.statusText = 'hello world';
+				xhr.abort();
+				assert.strictEqual(xhr.statusText, '');
+			});
+		});
+
 		describe('getResponseHeader', function() {
 			var xhr;
 
@@ -1037,17 +1037,26 @@
 				xhr = new Request();
 			});
 
-			it('should return null if request is not sent', function() {
-				xhr.open('GET', '/');
+			it('should return null if UNSENT', function() {
+				xhr.readyState = Request.UNSENT;
+				this.responseHeaders = { 'Content-Type': 'super' };
 
 				assert.isNull(xhr.getResponseHeader('Content-Type'));
 			});
 
-			it('should return null if headers are not set', function() {
-				xhr.open('GET', '/');
-				xhr.send();
+			it('should return null if OPENED', function() {
+				xhr.readyState = Request.OPENED;
+				this.responseHeaders = { 'Content-Type': 'super' };
 
-				assert.isNull(xhr.getResponseHeader('Set-Cookie'));
+				assert.isNull(xhr.getResponseHeader('Content-Type'));
+			});
+
+			it('should return null if aborted (error flag set)', function() {
+				xhr.readyState = Request.HEADERS_RECEIVED;
+				xhr.errorFlag = true;
+				xhr.responseHeaders = { 'Content-Type': 'super' };
+
+				assert.isNull(xhr.getResponseHeader('Content-Type'));
 			});
 
 			it('should return header value', function() {
@@ -1081,6 +1090,17 @@
 
 				assert.equal(xhr.getResponseHeader('content-type'), 'text/html');
 			});
+
+			it('should return null if header is case-insensitive match for Set-Cookie or Set-Cookie2', function() {
+				xhr.readyState = Request.DONE;
+				xhr.responseHeaders = {
+					'set-COOKIE': 'one',
+					'SET-cookie2': 'two'
+				};
+				
+				assert.isNull(xhr.getResponseHeader('set-COOKIE'));
+				assert.isNull(xhr.getResponseHeader('sEt-coOkie2'));
+			});
 		});
 
 
@@ -1091,17 +1111,26 @@
 				xhr = new Request();
 			});
 
-			it('should return null if request is not send', function() {
-				xhr.open('GET', '/');
+			it('should return empty string if UNSENT', function() {
+				xhr.readyState = Request.UNSENT;
+				xhr.responseHeaders = { 'Content-Type': 'text/plain' };
 
-				assert.strictEqual(xhr.getAllResponseHeaders(), null);
+				assert.strictEqual(xhr.getAllResponseHeaders(), '');
 			});
 
-			it('should return null if headers not received', function() {
-				xhr.open('GET', '/');
-				xhr.send();
+			it('should return empty string if OPENED', function() {
+				xhr.readyState = Request.OPENED;
+				xhr.responseHeaders = { 'Content-Type': 'text/plain' };
 
-				assert.strictEqual(xhr.getAllResponseHeaders(), null);
+				assert.strictEqual(xhr.getAllResponseHeaders(), '');
+			});
+
+			it('should return empty string if aborted (error flag set)', function() {
+				xhr.readyState = Request.DONE;
+				xhr.errorFlag = true;
+				xhr.responseHeaders = { 'Content-Type': 'text/plain' };
+
+				assert.strictEqual(xhr.getAllResponseHeaders(), '');
 			});
 
 			it('should return Http raw headers', function() {
@@ -1122,6 +1151,18 @@
 					'Content-Type': 'text/html',
 					'Content-Length': 32
 				});
+
+				assert.equal(xhr.getAllResponseHeaders(), 'Content-Type: text/html\r\nContent-Length: 32\r\n');
+			});
+
+			it('should return every headers except for set-cookie and set-cookie2, case-insensitive', function() {
+				xhr.readyState = Request.DONE;
+				xhr.responseHeaders = {
+					'Content-Type': 'text/html',
+					'Set-CoOkiE': 'super',
+					'SET-cookie2': 'hot',
+					'Content-Length': 32
+				};
 
 				assert.equal(xhr.getAllResponseHeaders(), 'Content-Type: text/html\r\nContent-Length: 32\r\n');
 			});

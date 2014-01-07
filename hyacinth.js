@@ -388,9 +388,12 @@
 	};
 
 	FakeRequest.prototype.getResponseHeader = function(header) {
-		if(this.readyState < FakeRequest.HEADERS_RECEIVED) {
+		if(this.readyState < FakeRequest.HEADERS_RECEIVED || this.errorFlag === true) {
 			return null;
 		} else {
+			if(/set-cookie2?/i.test(header)) {
+				return null;
+			}
 			header = header.toLowerCase();
 			var headers = {};
 			Object.keys(this.responseHeaders).forEach(function(key) {
@@ -401,11 +404,15 @@
 	};
 
 	FakeRequest.prototype.getAllResponseHeaders = function() {
-		if(this.readyState < FakeRequest.HEADERS_RECEIVED){
-			return null;
+		if(this.readyState < FakeRequest.HEADERS_RECEIVED || this.errorFlag === true) {
+			return '';
 		}
 		var inlineArray = Object.keys(this.responseHeaders || {}).map(function(header) {
-			return header + ': ' + this.responseHeaders[header] + '\r\n';
+			if(/set-cookie2?/i.test(header)) {
+				return '';
+			} else {
+				return header + ': ' + this.responseHeaders[header] + '\r\n';
+			}
 		}, this);
 		return inlineArray.join('');
 	};
