@@ -58,7 +58,7 @@
 		it('should have synchronous, upload complete and upload events flags unset', function() {
 			var xhr = new Request();
 
-			assert.isFalse(xhr.async);
+			assert.isTrue(xhr.async);
 			assert.isFalse(xhr.uploadComplete);
 			assert.isFalse(xhr.uploadEvents);
 		});
@@ -284,39 +284,6 @@
 			it('should be an instance of xhrEventTarget', function() {
 				assert.instanceOf(xhr.upload, hyacinth.XHREventTarget);
 			});
-
-			it('should trigger progress event with xhr.uploadProgress', function(done) {
-				xhr.upload.addEventListener('progress', function(e) {
-					assert.equal(e.total, 100);
-					assert.equal(e.loaded, 20);
-					done();
-				});
-				xhr.uploadProgress({
-					total: 100,
-					loaded: 20
-				});
-			});
-
-			it('should trigger abort event on cancel', function(done) {
-				xhr.upload.addEventListener('abort', function() {
-					assert.equal(xhr.readyState, Request.UNSENT);
-					assert.strictEqual(xhr.status, 0);
-
-					done();
-				});
-
-				xhr.send();
-				xhr.abort();
-			});
-
-			it('should trigger error event with uploadError', function(done) {
-				xhr.upload.addEventListener('error', function(e) {
-					assert.equal(e.detail.message, 'foobar');
-					done();
-				});
-
-				xhr.uploadError(new Error('foobar'));
-			});
 		});
 
 		describe('send', function() {
@@ -489,7 +456,277 @@
 				xhr.send('Data');
 			});
 		});
+		
+		describe('abort', function() {
+			var xhr;
 
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should set aborted flag to true', function() {
+				xhr.aborted = false;
+				xhr.abort();
+
+				assert.isTrue(xhr.aborted);
+			});
+
+			it('should set the async flag', function() {
+				xhr.async = false;
+				xhr.abort();
+
+				assert.isTrue(xhr.async);
+			});
+
+			it('should set errorFlag to true', function() {
+				xhr.errorFlag = false;
+				xhr.abort();
+
+				assert.isTrue(xhr.errorFlag);
+			});
+
+			describe('if ready state is OPENED, HEADERS_RECEIVED or UPLOAD and send flag set', function() {
+				var xhrs;
+
+				beforeEach(function() {
+					var xhr0 = new Request();
+					var xhr1 = new Request();
+					var xhr2 = new Request();
+					xhr0.readyState = Request.OPENED;
+					xhr0.sendFlag = true;
+					xhr1.sendFlag = true;
+					xhr1.readyState = Request.UPLOAD;
+					xhr2.sendFlag = true;
+					xhr2.readyState = Request.HEADERS_RECEIVED;
+					xhrs = [ xhr0, xhr1, xhr2 ];
+				});
+
+				it('should unset the send flag', function() {
+					xhrs.forEach(function(xhr) {
+						xhr.abort();
+
+						assert.isFalse(xhr.sendFlag);
+					});
+				});
+
+				it('should fire a readystatechange event with DONE state', function() {
+					xhrs.forEach(function(xhr) {
+						var called = false;
+						xhr.onreadystatechange = function() {
+							assert.equal(this.readyState, Request.DONE);
+							called = true;
+						};
+						xhr.abort();
+
+						assert.isTrue(called);
+					});
+				});
+
+				it('should fire a progress event', function() {
+					xhrs.forEach(function(xhr) {
+						var called = false;
+						xhr.onprogress = function() {
+							called = true;
+						};
+						xhr.abort();
+
+						assert.isTrue(called);
+					});
+				});
+
+				it('should fire an abort event', function() {
+					xhrs.forEach(function(xhr) {
+						var called = false;
+						xhr.onabort = function() {
+							called = true;
+						};
+						xhr.abort();
+
+						assert.isTrue(called);
+					});
+				});
+
+				it('should fire a loadend event', function() {
+					xhrs.forEach(function(xhr) {
+						var called = false;
+						xhr.onloadend = function() {
+							called = true;
+						};
+						xhr.abort();
+
+						assert.isTrue(called);
+					});
+				});
+
+				it('should fire progress, abort and loadend event on upload object while setting the loadcomplete flag if it is previously unset', function() {
+					xhrs.forEach(function(xhr) {
+						var called = [];
+						xhr.uploadComplete = false;
+						xhr.upload.onprogress = function() {
+							assert.isTrue(xhr.uploadComplete);
+							called.push('progress');
+						};
+						xhr.upload.onabort = function() {
+							called.push('abort');
+						};
+						xhr.upload.onloadend = function() {
+							called.push('loadend');
+						};
+
+						xhr.abort();
+						assert.deepEqual(called, ['progress', 'abort', 'loadend']);
+					});
+				});
+
+				it('should not fire progress, abort and loadend if loadcomplete is set', function() {
+					xhrs.forEach(function(xhr) {
+						var called = [];
+						xhr.uploadComplete = true;
+						xhr.upload.onprogress = function() {
+							called.push('progress');
+						};
+						xhr.upload.onabort = function() {
+							called.push('abort');
+						};
+						xhr.upload.onloadend = function() {
+							called.push('loadend');
+						};
+
+						xhr.abort();
+						assert.deepEqual(called, []);
+					});
+				});
+
+				it('should finally set UNSENT readystatus without firing the event', function() {
+					xhrs.forEach(function(xhr) {
+						var called = [];
+						xhr.onreadystatechange = function() {
+							called.push(this.readyState);
+						};
+						xhr.abort();
+
+						assert.equal(xhr.readyState, Request.UNSENT);
+						assert.deepEqual(called, [ Request.DONE ]);
+					});
+				});
+			});
+
+			describe('if state is UNSENT, DONE or OPENED and sendflag unset', function() {
+				var xhrs;
+				beforeEach(function() {
+					var xhr0 = new Request();
+					var xhr1 = new Request();
+					var xhr2 = new Request();
+					xhr0.readyState = Request.UNSENT;
+					xhr1.readyState = Request.OPENED;
+					xhr1.sendFlag = false;
+					xhr2.readyState = Request.DONE;
+					xhr2.sendFlag = true;
+					xhrs = [ xhr0, xhr1, xhr2 ];
+				});
+
+				it('should not fire any event', function() {
+					var called = false;
+					var handle = function() { called = true; };
+					xhrs.forEach(function(xhr) {
+						xhr.onreadystatechange = handle;
+						xhr.onprogress = handle;
+						xhr.onabort = handle;
+						xhr.onloadend = handle;
+						xhr.abort();
+
+						assert.isFalse(called);
+					});
+				});
+
+				it('should est ready state to UNSENT at the end', function() {
+					xhrs.forEach(function() {
+						xhr.abort();
+
+						assert.strictEqual(xhr.readyState, Request.UNSENT);
+					});
+				});
+			});
+		});
+
+		describe('abort on send', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+				xhr.open('GET', '/');
+				xhr.send();
+			});
+
+			it('should set the error flag', function() {
+				xhr.abort();
+
+				assert.isTrue(xhr.errorFlag);
+			});
+
+			it('should throw an error and ready state DONE if synchronous', function() {
+				var xhr = new Request();
+				xhr.open('GET', '/', false);
+				xhr.send();
+				
+				assert.throw(function() {
+					console.log(xhr.async + ' ' + xhr.readyState);
+					xhr.abort();
+				}, 'AbortError');
+				assert.equal(xhr.readyState, Request.DONE);
+			});
+		});
+		
+		describe('status', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should be 0 if UNSENT', function() {
+				assert.strictEqual(xhr.status, 0);
+			});
+
+			it('should be 0 if OPENED', function() {
+				xhr.open('GET', '/', false);
+				assert.strictEqual(xhr.status, 0);
+				xhr.send();
+				assert.strictEqual(xhr.status, 0);
+			});
+
+			it('should be 0 if aborted (error flag set)', function() {
+				xhr.status = 234;
+				xhr.abort();
+				assert.strictEqual(xhr.status, 0);
+			});
+		});
+
+		describe('status Text', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should be empty string if UNSENT', function() {
+				assert.strictEqual(xhr.statusText, '');
+			});
+
+			it('should be empty string if OPENED', function() {
+				xhr.open('GET', '/', true);
+				assert.strictEqual(xhr.statusText, '');
+				xhr.send();
+				assert.strictEqual(xhr.statusText, '');
+			});
+
+			it('should be empty string if aborted (error flag is set)', function() {
+				xhr.statusText = 'hello world';
+				xhr.abort();
+				assert.strictEqual(xhr.statusText, '');
+			});
+		});
+		
 		describe('setResponseHeaders', function() {
 			var xhr;
 
@@ -846,6 +1083,7 @@
 			});
 		});
 
+
 		describe('getAllResponseHeaders', function() {
 			var xhr;
 
@@ -886,198 +1124,6 @@
 				});
 
 				assert.equal(xhr.getAllResponseHeaders(), 'Content-Type: text/html\r\nContent-Length: 32\r\n');
-			});
-		});
-
-		describe('abort', function() {
-			var xhr;
-
-			beforeEach(function() {
-				xhr = new Request();
-			});
-
-			it('should set aborted flag to true', function() {
-				xhr.aborted = false;
-				xhr.abort();
-
-				assert.isTrue(xhr.aborted);
-			});
-
-			it('should set the async flag', function() {
-				xhr.async = false;
-				xhr.abort();
-
-				assert.isTrue(xhr.async);
-			});
-
-			it('should set errorFlag to true', function() {
-				xhr.errorFlag = false;
-				xhr.abort();
-
-				assert.isTrue(xhr.errorFlag);
-			});
-
-			describe('if ready state is OPENED, HEADERS_RECEIVED or UPLOAD and send flag set', function() {
-				var xhrs;
-
-				beforeEach(function() {
-					var xhr0 = new Request();
-					var xhr1 = new Request();
-					var xhr2 = new Request();
-					xhr0.readyState = Request.OPENED;
-					xhr0.sendFlag = true;
-					xhr1.sendFlag = true;
-					xhr1.readyState = Request.UPLOAD;
-					xhr2.sendFlag = true;
-					xhr2.readyState = Request.HEADERS_RECEIVED;
-					xhrs = [ xhr0, xhr1, xhr2 ];
-				});
-
-				it('should unset the send flag', function() {
-					xhrs.forEach(function(xhr) {
-						xhr.abort();
-
-						assert.isFalse(xhr.sendFlag);
-					});
-				});
-
-				it('should fire a readystatechange event with DONE state', function() {
-					xhrs.forEach(function(xhr) {
-						var called = false;
-						xhr.onreadystatechange = function() {
-							assert.equal(this.readyState, Request.DONE);
-							called = true;
-						};
-						xhr.abort();
-
-						assert.isTrue(called);
-					});
-				});
-
-				it('should fire a progress event', function() {
-					xhrs.forEach(function(xhr) {
-						var called = false;
-						xhr.onprogress = function() {
-							called = true;
-						};
-						xhr.abort();
-
-						assert.isTrue(called);
-					});
-				});
-
-				it('should fire an abort event', function() {
-					xhrs.forEach(function(xhr) {
-						var called = false;
-						xhr.onabort = function() {
-							called = true;
-						};
-						xhr.abort();
-
-						assert.isTrue(called);
-					});
-				});
-
-				it('should fire a loadend event', function() {
-					xhrs.forEach(function(xhr) {
-						var called = false;
-						xhr.onloadend = function() {
-							called = true;
-						};
-						xhr.abort();
-
-						assert.isTrue(called);
-					});
-				});
-
-				it('should fire progress, abort and loadend event on upload object while setting the loadcomplete flag if it is previously unset', function() {
-					xhrs.forEach(function(xhr) {
-						var called = [];
-						xhr.uploadComplete = false;
-						xhr.upload.onprogress = function() {
-							assert.isTrue(xhr.uploadComplete);
-							called.push('progress');
-						};
-						xhr.upload.onabort = function() {
-							called.push('abort');
-						};
-						xhr.upload.onloadend = function() {
-							called.push('loadend');
-						};
-
-						xhr.abort();
-						assert.deepEqual(called, ['progress', 'abort', 'loadend']);
-					});
-				});
-
-				it('should not fire progress, abort and loadend if loadcomplete is set', function() {
-					xhrs.forEach(function(xhr) {
-						var called = [];
-						xhr.uploadComplete = true;
-						xhr.upload.onprogress = function() {
-							called.push('progress');
-						};
-						xhr.upload.onabort = function() {
-							called.push('abort');
-						};
-						xhr.upload.onloadend = function() {
-							called.push('loadend');
-						};
-
-						xhr.abort();
-						assert.deepEqual(called, []);
-					});
-				});
-
-				it('should finally set UNSENT readystatus without firing the event', function() {
-					xhrs.forEach(function(xhr) {
-						var called = [];
-						xhr.onreadystatechange = function() {
-							called.push(this.readyState);
-						};
-						xhr.abort();
-
-						assert.equal(xhr.readyState, Request.UNSENT);
-						assert.deepEqual(called, [ Request.DONE ]);
-					});
-				});
-			});
-
-			describe('if state is UNSENT, DONE or OPENED and sendflag unset', function() {
-				var xhrs;
-				beforeEach(function() {
-					var xhr0 = new Request();
-					var xhr1 = new Request();
-					var xhr2 = new Request();
-					xhr0.readyState = Request.UNSENT;
-					xhr1.readyState = Request.OPENED;
-					xhr1.sendFlag = false;
-					xhr2.readyState = Request.DONE;
-					xhr2.sendFlag = true;
-					xhrs = [ xhr0, xhr1, xhr2 ];
-				});
-
-				it('should not fire any event', function() {
-					var called = false;
-					var handle = function() { called = true; };
-					xhrs.forEach(function(xhr) {
-						xhr.onreadystatechange = handle;
-						xhr.onprogress = handle;
-						xhr.onabort = handle;
-						xhr.onloadend = handle;
-						xhr.abort();
-
-						assert.isFalse(called);
-					});
-				});
-
-				it('should est ready state to UNSENT at the end', function() {
-					xhrs.forEach(function() {
-						xhr.abort();
-
-						assert.strictEqual(xhr.readyState, Request.UNSENT);
-					});
-				});
 			});
 		});
 

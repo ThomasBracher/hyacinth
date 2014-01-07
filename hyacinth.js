@@ -72,7 +72,7 @@
 		this.onreadystatechange = null;
 		this.sendFlag = false;
 		this.errorFlag = false;
-		this.async = false;
+		this.async = true;
 		this.uploadComplete = false;
 		this.uploadEvents = false;
 		this.requestHeaders = {};
@@ -81,6 +81,7 @@
 		this.readyState = FakeRequest.UNSENT;
 		this.responseXML = null;
 		this.status = 0;
+		this.statusText = '';
 		this.upload = new XHREventTarget();
 		if(typeof FakeRequest.oncreate === 'function') {
 			FakeRequest.oncreate.call(null, this);
@@ -245,6 +246,15 @@
 	FakeRequest.prototype.abort = function() {
 		this.aborted = true;
 		this.errorFlag = true;
+
+		this.status = 0;
+		this.statusText = '';
+
+		if(this.async === false && this.readyState === FakeRequest.OPENED) {
+			this.readyState = FakeRequest.DONE;
+			throw new Error('AbortError');
+		}
+
 		this.async = true;
 
 		if(this.sendFlag === true && this.readyState !== FakeRequest.DONE) {
