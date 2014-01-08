@@ -113,6 +113,7 @@
 		this.status = 0;
 		this.statusText = '';
 		this.upload = new XHREventTarget();
+		this.response = null;
 		Object.defineProperty(this, 'responseType', {
 			enumerable: true,
 			set: function() {
@@ -300,6 +301,11 @@
 
 		this.status = 0;
 		this.statusText = '';
+		if(this.responseType === 'text' || this.responseType === '') {
+			this.response = '';
+		} else {
+			this.response = null;
+		}
 
 		if(this.async === false && this.readyState === FakeRequest.OPENED) {
 			this.readyState = FakeRequest.DONE;
@@ -366,7 +372,17 @@
 			this.responseXML = parser.parseFromString(this.responseText, this.getResponseHeader('Content-Type') || 'text/xml');
 		}
 
-		this.response = this.responseText;
+		if(this.responseType === 'json') {
+			try {
+				this.response = JSON.parse(this.responseText);
+			} catch(e) {
+				this.response = null;
+			}
+		} else if(this.responseType === 'arraybuffer') {
+			this.response = new ArrayBuffer();
+		} else {
+			this.response = this.responseText;
+		}
 
 		if(this.async) {
 			this.setReadyState(FakeRequest.DONE);

@@ -1214,6 +1214,43 @@
 
 				assert.equal(xhr.response, '<div>hello</div>');
 			});
+
+			it('should be empty string if aborted and type is text or ""', function() {
+				xhr.responseType = 'text';
+				xhr.response = 'hello';
+				xhr.abort();
+
+				assert.strictEqual(xhr.response, '');
+			});
+
+			it('should be null if the responseType is not "text" and state not DONE', function() {
+				xhr.responseType = 'json';
+				assert.strictEqual(xhr.response, null);
+			});
+
+			it('should be null if aborted (error flag set)', function() {
+				xhr.responseType = 'json';
+				xhr.response = { salut: 'hello' };
+				xhr.abort();
+
+				assert.strictEqual(xhr.response, null);
+			});
+
+			it('should return a json object if type is json', function() {
+				var obj = { hello: 'salut' };
+				xhr.responseType = 'json';
+				xhr.respond(200, {}, JSON.stringify(obj));
+
+				assert.deepEqual(xhr.response, obj);
+			});
+
+			it('should return null if the json is malformed', function() {
+				var obj = '{ hello: "salut" }';
+				xhr.responseType = 'json';
+				xhr.respond(200, {}, obj);
+
+				assert.strictEqual(xhr.response, null);
+			});
 		});
 
 		describe('responseXML', function() {
