@@ -113,6 +113,20 @@
 		this.status = 0;
 		this.statusText = '';
 		this.upload = new XHREventTarget();
+		Object.defineProperty(this, 'responseType', {
+			enumerable: true,
+			set: function() {
+				if(this.readyState === FakeRequest.DONE || this.readyState === FakeRequest.LOADING) {
+					throw new Error('InvalidStateError');
+				} else if(this.async === false) {
+					throw new Error('InvalidAccessError');
+				}
+				this._responseType = arguments[0];
+			},
+			get: function() {
+				return this._responseType || '';
+			}
+		});
 		if(typeof FakeRequest.oncreate === 'function') {
 			FakeRequest.oncreate.call(null, this);
 		}
@@ -340,20 +354,19 @@
 		this.assertOpenAndHeadersReceived();
 		this.responseNotSent();
 		verifyResponseBodyType(body);
-		var chunksize = this.chunkSize || 10;
 		this.responseText = '';
 
-		while(this.responseText.length < body.length) {
-			if(this.async) {
-				this.setReadyState(FakeRequest.LOADING);
-			}
-			this.responseText += body.slice(this.responseText.length, this.responseText.length+ chunksize);
+		if(this.async) {
+			this.setReadyState(FakeRequest.LOADING);
 		}
+		this.responseText = body;
 
 		if(this.responseText !== '') {
 			var parser = new DOMParser();
 			this.responseXML = parser.parseFromString(this.responseText, this.getResponseHeader('Content-Type') || 'text/xml');
 		}
+
+		this.response = this.responseText;
 
 		if(this.async) {
 			this.setReadyState(FakeRequest.DONE);
@@ -456,6 +469,13 @@
 			}
 		}, this);
 		return inlineArray.join('');
+	};
+
+	FakeRequest.prototype.overrideMimeType = function(mimeType) {
+		if(this.readyState === FakeRequest.DONE || this.readyState === FakeRequest.LOADING) {
+			throw new Error('InvalidStateError');
+		}
+		this.mimeType = mimeType;
 	};
 
 	FakeRequest.UNSENT = 0;

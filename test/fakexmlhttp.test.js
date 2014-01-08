@@ -663,7 +663,6 @@
 				xhr.send();
 				
 				assert.throw(function() {
-					console.log(xhr.async + ' ' + xhr.readyState);
 					xhr.abort();
 				}, 'AbortError');
 				assert.equal(xhr.readyState, Request.DONE);
@@ -743,41 +742,6 @@
 				xhr.setResponseBody('some text goes in here ok?');
 
 				assert.equal(spy[0], Request.LOADING);
-			});
-
-			it('should invoke setReadyState for each 10 byte chunk', function() {
-				var spy = [];
-				xhr.setReadyState = function() {
-					spy.push('a');
-				};
-
-				xhr.setResponseBody('Some text goes in here ok?');
-
-				assert.lengthOf(spy, 4);
-			});
-
-			it('should invoke setReadyState for each x byte chunk', function() {
-				var spy = [];
-				xhr.setReadyState = function() {
-					spy.push('a');
-				};
-				xhr.chunkSize = 20;
-
-				xhr.setResponseBody('Some text goes in here ok?');
-
-				assert.lengthOf(spy, 3);
-			});
-
-			it('should invoke setReadyState with partial data', function() {
-				var pieces = [];
-				xhr.setReadyState = function() {
-					pieces.push(this.responseText);
-				};
-				xhr.chunkSize = 9;
-
-				xhr.setResponseBody('Some text goes in here ok?');
-
-				assert.equal(pieces[1], 'Some text');
 			});
 
 			it('call setReadyState with DONE state', function(done) {
@@ -1158,6 +1122,97 @@
 				};
 
 				assert.equal(xhr.getAllResponseHeaders(), 'Content-Type: text/html\r\nContent-Length: 32\r\n');
+			});
+		});
+
+		describe('override mimetype', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should throw an error if xhr is LOADING', function() {
+				xhr.readyState = Request.LOADING;
+
+				assert.throw(function() {
+					xhr.overrideMimeType();
+				}, 'InvalidStateError');
+			});
+
+			it('should throw an error if xhr is DONE', function() {
+				xhr.readyState = Request.DONE;
+
+				assert.throw(function() {
+					xhr.overrideMimeType();
+				}, 'InvalidStateError');
+			});
+
+			it('should set the current mime type otherwise', function() {
+				xhr.overrideMimeType('text/html');
+
+				assert.equal(xhr.mimeType, 'text/html');
+			});
+		});
+
+		describe('reponseType', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+			});
+
+			it('should throw an error if LOADING', function() {
+				xhr.readyState = Request.LOADING;
+
+				assert.throw(function() {
+					xhr.responseType = 'super';
+				}, 'InvalidStateError');
+			});
+
+			it('should throw an error if DONE', function() {
+				xhr.readyState = Request.DONE;
+
+				assert.throw(function() {
+					xhr.responseType = 'hello';
+				}, 'InvalidStateError');
+			});
+
+			it('should throw an error if not async', function() {
+				xhr.async = false;
+
+				assert.throw(function() {
+					xhr.responseType = 'hello';
+				}, 'InvalidAccessError');
+			});
+
+			it('should return an empty string if not setted', function() {
+				assert.strictEqual(xhr.responseType, '');
+			});
+
+			it('should be setted and return the value if not DONE, LOADING or not async', function() {
+				xhr.readyState = Request.HEADERS_RECEIVED;
+				xhr.async = true;
+
+				xhr.responseType = 'text';
+				assert.equal(xhr.responseType, 'text');
+			});
+		});
+
+		describe('response', function() {
+			var xhr;
+
+			beforeEach(function() {
+				xhr = new Request();
+				xhr.open('GET', '/');
+				xhr.send();
+			});
+
+			it('should be a string if type is empty or text', function() {
+				xhr.responseType = 'text';
+				xhr.respond(200, {}, '<div>hello</div>');
+
+				assert.equal(xhr.response, '<div>hello</div>');
 			});
 		});
 
