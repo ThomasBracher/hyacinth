@@ -17,6 +17,17 @@
 			assert.instanceOf(xhr, hyacinth.XHREventTarget);
 		});
 
+		it('should fire an create event on the xhr object', function(done) {
+			var xhr;
+			Request.oncreate = function(e) {
+				assert.deepEqual(e.xhr, xhr);
+				Request.oncreate = null;
+				done();
+			};
+
+			xhr = new Request();
+		});
+
 		it('should start with null onreadystatechange handler', function() {
 			var xhr = new Request();
 

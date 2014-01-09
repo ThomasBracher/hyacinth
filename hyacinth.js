@@ -494,12 +494,32 @@
 		this.mimeType = mimeType;
 	};
 
+	function Server() {
+		this._xhrs = [];
+	}
+
+	Server.prototype.launch = function() {
+		var _this = this;
+		this._xhr = window.XMLHttpRequest;
+		window.XMLHttpRequest = FakeRequest;
+		window.XMLHttpRequest.oncreate = function(xhr) {
+			_this._xhrs.push(xhr);
+		};
+	};
+
+	Server.prototype.shutdown = function() {
+		window.XMLHttpRequest = this._xhr;
+		this._xhrs = [];
+	};
+
 	FakeRequest.UNSENT = 0;
 	FakeRequest.OPENED = 1;
 	FakeRequest.HEADERS_RECEIVED = 2;
 	FakeRequest.LOADING = 3;
 	FakeRequest.DONE = 4;
 
+	hyacinth.Server = Server;
+	hyacinth.server = new Server();
 	hyacinth.EventTarget = EventTarget;
 	hyacinth.Event = Event;
 	hyacinth.XHREventTarget = XHREventTarget;
