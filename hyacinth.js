@@ -494,6 +494,12 @@
 		this.mimeType = mimeType;
 	};
 
+	FakeRequest.UNSENT = 0;
+	FakeRequest.OPENED = 1;
+	FakeRequest.HEADERS_RECEIVED = 2;
+	FakeRequest.LOADING = 3;
+	FakeRequest.DONE = 4;
+
 	function Server() {
 		this._xhrs = [];
 	}
@@ -512,17 +518,37 @@
 		this._xhrs = [];
 	};
 
-	FakeRequest.UNSENT = 0;
-	FakeRequest.OPENED = 1;
-	FakeRequest.HEADERS_RECEIVED = 2;
-	FakeRequest.LOADING = 3;
-	FakeRequest.DONE = 4;
+	Server.prototype.get = function(path, handler) {
 
+	};
+
+	function Response(xhr) {
+		if(arguments[0] === undefined) {
+			throw new Error('ArgumentMissingError');
+		}
+		this._headers = {};
+		this.xhr = xhr;
+	}
+
+	Response.prototype.setHeader = function(header, value) {
+		this._headers[header] = value;
+	};
+
+	Response.prototype.send = function() {
+		var status = arguments[0] || 200;
+		var text = arguments[1] || '';
+		if(typeof arguments[0] === 'string') {
+			status = 200;
+			text = arguments[0];
+		}
+		this.xhr.respond(status, this._headers, text);
+	};
+
+	hyacinth.Response = Response;
 	hyacinth.Server = Server;
 	hyacinth.server = new Server();
 	hyacinth.EventTarget = EventTarget;
 	hyacinth.Event = Event;
 	hyacinth.XHREventTarget = XHREventTarget;
 	hyacinth.FakeXMLHttpRequest = FakeRequest;
-	hyacinth.version = '0.0.1-dev';
 })();
