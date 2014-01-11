@@ -501,6 +501,7 @@
 	FakeRequest.DONE = 4;
 
 	function Server() {
+		this.expectations = [];
 		this._xhrs = [];
 	}
 
@@ -509,6 +510,9 @@
 		this._xhr = window.XMLHttpRequest;
 		window.XMLHttpRequest = FakeRequest;
 		window.XMLHttpRequest.oncreate = function(xhr) {
+			xhr.onsend = function() {
+				_this.respondTo(xhr);
+			};
 			_this._xhrs.push(xhr);
 		};
 	};
@@ -519,7 +523,38 @@
 	};
 
 	Server.prototype.get = function(path, handler) {
+		this.expectations.push(new Expectation({
+			method: 'GET',
+			url: '/',
+			handler: handler
+		}));
+	};
 
+	Server.prototype.respondTo = function(xhr) {
+		this.expectations.forEach(function(expectation) {
+			expectation.handle(xhr);
+		});
+	};
+
+	function Expectation(spec) {
+		if(typeof spec.url !== 'string' || typeof spec.method !== 'string') {
+			throw new Error('MissingArgumentError');
+		}
+		this.method = spec.method;
+		this.url = spec.url;
+		this.handler = spec.handler || function() {};
+	}
+
+	var noop = function() {};
+
+	Expectation.prototype.handle = function(xhr) {
+		if(this.method !== xhr.method) {
+			noop();
+		} else if(this.url !== xhr.url) {
+			noop();
+		} else {
+			this.handler();
+		}
 	};
 
 	function Response(xhr) {
@@ -546,7 +581,7 @@
 
 	hyacinth.Response = Response;
 	hyacinth.Server = Server;
-	hyacinth.server = new Server();
+	hyacinth.Expectation = Expectation;
 	hyacinth.EventTarget = EventTarget;
 	hyacinth.Event = Event;
 	hyacinth.XHREventTarget = XHREventTarget;

@@ -3,13 +3,78 @@
 
 	var assert = chai.assert;
 
-	var server = hyacinth.server;
 	var Server = hyacinth.Server;
 
 	var Response = hyacinth.Response;
+	var Expectation = hyacinth.Expectation;
 
 	describe('hyacinth.server', function() {
+		describe('Expectation', function() {
+			it('should have at least a method and a url', function() {
+				assert.throw(function() {
+					new Expectation({ method: 'GET' });
+				}, 'MissingArgumentError');
+				assert.throw(function() {
+					new Expectation({ url: '/' });
+				}, 'MissingArgumentError');
+				assert.doesNotThrow(function() {
+					new Expectation({ method: 'GET', url: '/' });
+				}, 'MissingArgumentError');
+			});
+
+			it('should handle a identical xhr', function() {
+				var called = false;
+				var exp = new Expectation({
+					method: 'GET',
+					url: '/',
+					handler: function() {
+						called = true;
+					}
+				});
+				var xhr = new hyacinth.FakeXMLHttpRequest();
+				xhr.open('GET', '/');
+				xhr.send();
+
+				exp.handle(xhr);
+				assert.isTrue(called);
+			});
+
+			it('should not handle if the method is different', function() {
+				var called = false;
+				var exp = new Expectation({
+					method: 'GET',
+					url: '/',
+					handler: function() {
+						called = true;
+					}
+				});
+				var xhr = new hyacinth.FakeXMLHttpRequest();
+				xhr.open('POST', '/');
+				xhr.send();
+
+				assert.isFalse(called);
+			});
+
+			it('should not handle if the url is different', function() {
+				var called = false;
+				var exp = new Expectation({
+					method: 'GET',
+					url: '/irl',
+					handler: function() {
+						called = true;
+					}
+				});
+				var xhr = new hyacinth.FakeXMLHttpRequest();
+				xhr.open('GET', '/url');
+				xhr.send();
+
+				exp.handle(xhr);
+				assert.isFalse(called);
+			});
+		});
+
 		describe('xhr faking', function() {
+			var server = new Server();
 			var XHR = window.XMLHttpRequest;
 
 			beforeEach(function() {
@@ -32,6 +97,8 @@
 		});
 
 		describe('shutdown', function() {
+			var server = new Server();
+
 			it('should delete every saved requests', function() {
 				server._xhrs = [ 'hello' ];
 				server.shutdown();
@@ -41,7 +108,10 @@
 		});
 
 		describe('detecting xhr activity', function() {
+			var server;
+
 			beforeEach(function() {
+				server = new Server();
 				server.launch();
 			});
 
@@ -54,15 +124,92 @@
 
 				assert.deepEqual(server._xhrs, [ xhr ]);
 			});
+
+			it('should add an onsend listener', function() {
+				var xhr = new XMLHttpRequest();
+
+				assert.isFunction(xhr.onsend);
+			});
+
+			it('should execute respondTo member when send event is trigger', function(done) {
+				var xhr = new XMLHttpRequest();
+				server.respondTo = function() {
+					assert.deepEqual(xhr, arguments[0]);
+					done();
+				};
+				xhr.open('GET', '/');
+				xhr.send();
+			});
 		});
 
-		describe('.get', function() {
+		describe('respondTo', function() {
+			var server;
+
 			beforeEach(function() {
+				server = new Server();
 				server.launch();
 			});
 
 			afterEach(function() {
 				server.shutdown();
+			});
+
+			it('should execute the handler of the matching expectation', function(done) {
+				server.expectations.push(new Expectation({
+					method: 'GET',
+					url: '/',
+					handler: function() {
+						done();
+					}
+				}));
+				var xhr = {
+					url: '/',
+					method: 'GET'
+				};
+
+				server.respondTo(xhr);
+			});
+
+			it('should not execute if no expectation matchs the xhr', function() {
+				var called = false;
+				server.expectations.push(new Expectation({
+					method: 'POST',
+					url: '/',
+					handler: function() {
+						called = true;
+					}
+				}));
+				var xhr = {
+					url: '/',
+					method: 'GET'
+				};
+
+				server.respondTo(xhr);
+				assert.isFalse(called);
+			});
+		});
+
+		describe('.get', function() {
+			var server;
+
+			beforeEach(function() {
+				server = new Server();
+				server.launch();
+			});
+
+			afterEach(function() {
+				server.shutdown();
+			});
+
+			it('should save the expectation', function() {
+				var handler = function() {};
+				server.get('/', handler);
+
+				assert.deepEqual(server.expectations[0], new Expectation({
+					method: 'GET',
+					url: '/',
+					handler: handler
+				}));
 			});
 
 			it('should execute handler when path is respected', function(done) {
