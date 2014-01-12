@@ -553,7 +553,8 @@
 		} else if(this.url !== xhr.url) {
 			noop();
 		} else {
-			this.handler();
+			var res = new Response(xhr);
+			this.handler.call(null, null, res);
 		}
 	};
 
