@@ -5,6 +5,7 @@
 
 	var Server = hyacinth.Server;
 
+	var Request = hyacinth.Request;
 	var Response = hyacinth.Response;
 	var Expectation = hyacinth.Expectation;
 
@@ -37,6 +38,19 @@
 
 				exp.handle(xhr);
 				assert.isTrue(called);
+			});
+
+			it('should respond with a Response Object as second argument', function(done) {
+				var xhr = { method: 'GET', url: '/' };
+				var exp = new Expectation({
+					method: 'GET', url: '/',
+					handler: function(req, res) {
+						assert.instanceOf(res, Response);
+						done();
+					}
+				});
+
+				exp.handle(xhr);
 			});
 
 			it('should not handle if the method is different', function() {
@@ -222,6 +236,30 @@
 				xhr.send();
 			});
 		});
+
+		describe('post', function() {
+			var server;
+
+			beforeEach(function() {
+				server = new Server();
+				server.launch();
+			});
+
+			afterEach(function() {
+				server.shutdown();
+			});
+
+			it('should save the expectation', function() {
+				var handler = function() {};
+				server.post('/', 'body', handler); 
+
+				assert.deepEqual(server.expectations[0], new Expectation({
+					method: 'POST',
+					url: '/',
+					handler: handler
+				}));
+			});
+		});
 	});
 
 	describe('Response', function() {
@@ -320,6 +358,59 @@
 				var res = new Response(xhr);
 				res._headers = { 'Content-Type': 'text/html' };
 				res.send();
+			});
+		});
+	});
+
+	describe('Request', function() {
+		it('should be a constructor', function() {
+			assert.isFunction(Request);
+		});
+
+		it('should throw an exception if no argument passed', function() {
+			assert.throw(function() {
+				new Request();
+			}, 'MissingArgumentError');
+		});
+
+		it('should not throw any thing if an object is passed', function() {
+			assert.doesNotThrow(function() {
+				new Request({});
+			});
+		});
+
+		describe('body', function() {
+			it('should return the body of the xhr', function() {
+				var xhr = {
+					requestBody: 'hello world'
+				};
+				var req = new Request(xhr);
+
+				assert.equal(req.body(), 'hello world');
+			});
+		});
+
+		describe('getHeader', function() {
+			it('should return the request headers of the xhr', function() {
+				var xhr = {
+					requestHeaders: {
+						'Content-Type': 'application/json'
+					}
+				};
+				var req = new Request(xhr);
+
+				assert.equal(req.getHeader('Content-Type'), 'application/json');
+			});
+
+			it('should return the request headers case-insensitive', function() {
+				var xhr = {
+					requestHeaders: {
+						'Content-Type': 'application/json'
+					}
+				};
+				var req = new Request(xhr);
+
+				assert.equal(req.getHeader('cOntENt-tyPe'), 'application/json');
 			});
 		});
 	});

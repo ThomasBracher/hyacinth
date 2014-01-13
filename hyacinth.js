@@ -530,6 +530,14 @@
 		}));
 	};
 
+	Server.prototype.post = function(path, body, handler) {
+		this.expectations.push(new Expectation({
+			method: 'POST',
+			url: '/',
+			handler: handler
+		}));
+	};
+
 	Server.prototype.respondTo = function(xhr) {
 		this.expectations.forEach(function(expectation) {
 			expectation.handle(xhr);
@@ -580,6 +588,26 @@
 		this.xhr.respond(status, this._headers, text);
 	};
 
+	function Request(xhr) {
+		if(!xhr) {
+			throw new Error('MissingArgumentError');
+		}
+		this.xhr = xhr;
+	}
+
+	Request.prototype.body = function() {
+		return this.xhr.requestBody;
+	};
+
+	Request.prototype.getHeader = function(header) {
+		var headers = this.xhr.requestHeaders;
+		var match = Object.keys(headers).filter(function(key) {
+			return key.toLowerCase() === header.toLowerCase();
+		});
+		return headers[match];
+	};
+	
+	hyacinth.Request = Request;
 	hyacinth.Response = Response;
 	hyacinth.Server = Server;
 	hyacinth.Expectation = Expectation;
