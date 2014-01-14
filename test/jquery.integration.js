@@ -24,5 +24,17 @@
 				done();
 			});
 		});
+
+		it('should work with a delay', function(done) {
+			server.get('/', function(req, res) {
+				setTimeout(function() {
+					res.send(200, 'hello world');
+				}, 50);
+			});
+			$.get('/', function(data) {
+				assert.equal(data, 'hello world');
+				done();
+			});
+		});
 	});
 })();

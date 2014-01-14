@@ -511,7 +511,7 @@
 		window.XMLHttpRequest = FakeRequest;
 		window.XMLHttpRequest.oncreate = function(xhr) {
 			xhr.onsend = function() {
-				_this.respondTo(xhr);
+				_this.lookUp(xhr);
 			};
 			_this._xhrs.push(xhr);
 		};
@@ -522,30 +522,33 @@
 		this._xhrs = [];
 	};
 
-	Server.prototype.get = function(path, handler) {
-		this.expectations.push(new Expectation({
-			method: 'GET',
-			url: '/',
-			handler: handler
-		}));
+	var verb = function(verb) {
+		return function(path, handler) {
+			this.expectations.push(new Expectation({
+				method: verb,
+				url: path,
+				handler: handler
+			}));
+		};
 	};
 
-	Server.prototype.post = function(path, body, handler) {
-		this.expectations.push(new Expectation({
-			method: 'POST',
-			url: '/',
-			handler: handler
-		}));
-	};
+	Server.prototype.verb = verb;
 
-	Server.prototype.respondTo = function(xhr) {
+	Server.prototype.get = verb('GET');
+	Server.prototype.post = verb('POST');
+	Server.prototype.options = verb('OPTIONS');
+	Server.prototype.head = verb('HEAD');
+	Server.prototype.put = verb('PUT');
+	Server.prototype.delete = verb('DELETE');
+
+	Server.prototype.lookUp = function(xhr) {
 		this.expectations.forEach(function(expectation) {
 			expectation.handle(xhr);
 		});
 	};
 
 	function Expectation(spec) {
-		if(typeof spec.url !== 'string' || typeof spec.method !== 'string') {
+		if(!spec.url || !spec.method) {
 			throw new Error('MissingArgumentError');
 		}
 		this.method = spec.method;
@@ -558,11 +561,12 @@
 	Expectation.prototype.handle = function(xhr) {
 		if(this.method !== xhr.method) {
 			noop();
-		} else if(this.url !== xhr.url) {
+		} else if(!xhr.url.match(this.url)) {
 			noop();
 		} else {
+			var req = new Request(xhr);
 			var res = new Response(xhr);
-			this.handler.call(null, null, res);
+			this.handler.call(null, req, res);
 		}
 	};
 
@@ -593,6 +597,7 @@
 			throw new Error('MissingArgumentError');
 		}
 		this.xhr = xhr;
+		this.url = xhr.url;
 	}
 
 	Request.prototype.body = function() {

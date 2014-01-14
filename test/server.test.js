@@ -12,15 +12,14 @@
 	describe('hyacinth.server', function() {
 		describe('Expectation', function() {
 			it('should have at least a method and a url', function() {
-				assert.throw(function() {
-					new Expectation({ method: 'GET' });
-				}, 'MissingArgumentError');
-				assert.throw(function() {
-					new Expectation({ url: '/' });
-				}, 'MissingArgumentError');
-				assert.doesNotThrow(function() {
-					new Expectation({ method: 'GET', url: '/' });
-				}, 'MissingArgumentError');
+				var assertWith = function(method, object) {
+					assert[method](function() {
+						new Expectation(object);
+					}, 'MissingArgumentError');
+				};
+				assertWith('throw', { method: 'GET' });
+				assertWith('throw', { url: '/' });
+				assertWith('doesNotThrow', { method: 'GET', url: '/' });
 			});
 
 			it('should handle a identical xhr', function() {
@@ -40,11 +39,12 @@
 				assert.isTrue(called);
 			});
 
-			it('should respond with a Response Object as second argument', function(done) {
+			it('should respond with a Request and Response as argument', function(done) {
 				var xhr = { method: 'GET', url: '/' };
 				var exp = new Expectation({
 					method: 'GET', url: '/',
 					handler: function(req, res) {
+						assert.instanceOf(req, Request);
 						assert.instanceOf(res, Response);
 						done();
 					}
@@ -145,9 +145,9 @@
 				assert.isFunction(xhr.onsend);
 			});
 
-			it('should execute respondTo member when send event is trigger', function(done) {
+			it('should execute lookUp member when send event is trigger', function(done) {
 				var xhr = new XMLHttpRequest();
-				server.respondTo = function() {
+				server.lookUp = function() {
 					assert.deepEqual(xhr, arguments[0]);
 					done();
 				};
@@ -156,7 +156,7 @@
 			});
 		});
 
-		describe('respondTo', function() {
+		describe('lookUp', function() {
 			var server;
 
 			beforeEach(function() {
@@ -181,7 +181,7 @@
 					method: 'GET'
 				};
 
-				server.respondTo(xhr);
+				server.lookUp(xhr);
 			});
 
 			it('should not execute if no expectation matchs the xhr', function() {
@@ -198,12 +198,30 @@
 					method: 'GET'
 				};
 
-				server.respondTo(xhr);
+				server.lookUp(xhr);
 				assert.isFalse(called);
+			});
+
+			it('should match the actual url with a regexp', function() {
+				var called = false;
+				server.expectations.push(new Expectation({
+					method: 'GET',
+					url: /hello/,
+					handler: function() {
+						called = true;
+					}
+				}));
+				var xhr = {
+					url: '/hello/world',
+					method: 'GET'
+				};
+
+				server.lookUp(xhr);
+				assert.isTrue(called);
 			});
 		});
 
-		describe('.get', function() {
+		describe('verb', function() {
 			var server;
 
 			beforeEach(function() {
@@ -217,7 +235,7 @@
 
 			it('should save the expectation', function() {
 				var handler = function() {};
-				server.get('/', handler);
+				server.verb('GET').call(server, '/', handler);
 
 				assert.deepEqual(server.expectations[0], new Expectation({
 					method: 'GET',
@@ -226,38 +244,24 @@
 				}));
 			});
 
-			it('should execute handler when path is respected', function(done) {
-				server.get('/', function() {
-					done();
-				});
-
-				var xhr = new XMLHttpRequest();
-				xhr.open('GET', '/');
-				xhr.send();
-			});
-		});
-
-		describe('post', function() {
-			var server;
-
-			beforeEach(function() {
-				server = new Server();
-				server.launch();
-			});
-
-			afterEach(function() {
-				server.shutdown();
-			});
-
-			it('should save the expectation', function() {
+			it('should save it when the url is not /', function() {
 				var handler = function() {};
-				server.post('/', 'body', handler); 
+				server.verb('POST').call(server, /hello/, handler);
 
 				assert.deepEqual(server.expectations[0], new Expectation({
 					method: 'POST',
-					url: '/',
+					url: /hello/,
 					handler: handler
 				}));
+			});
+
+			it('should be sugarize in common verbs', function() {
+				assert.isFunction(server.get);
+				assert.isFunction(server.post);
+				assert.isFunction(server.put);
+				assert.isFunction(server.delete);
+				assert.isFunction(server.head);
+				assert.isFunction(server.options);
 			});
 		});
 	});
@@ -411,6 +415,15 @@
 				var req = new Request(xhr);
 
 				assert.equal(req.getHeader('cOntENt-tyPe'), 'application/json');
+			});
+
+			it('should return the requested raw url', function() {
+				var xhr = {
+					url: '/hello/world'
+				};
+				var req = new Request(xhr);
+
+				assert.equal(req.url, '/hello/world');
 			});
 		});
 	});
