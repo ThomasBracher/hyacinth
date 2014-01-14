@@ -592,6 +592,18 @@
 		this.xhr.respond(status, this._headers, text);
 	};
 
+	Response.prototype.json = function() {
+		var status = arguments[0] || 200;
+		var data = arguments[1] || '';
+		if(typeof arguments[1] === 'undefined') {
+			status = 200;
+			data = arguments[0];
+		}
+		this._headers['Content-Type'] = 'application/json';
+		this.xhr.responseType = 'json';
+		this.xhr.respond(status, this._headers, JSON.stringify(data));
+	};
+
 	function Request(xhr) {
 		if(!xhr) {
 			throw new Error('MissingArgumentError');
@@ -600,8 +612,17 @@
 		this.url = xhr.url;
 	}
 
-	Request.prototype.body = function() {
-		return this.xhr.requestBody;
+	Request.prototype.body = function(type) {
+		var body = this.xhr.requestBody;
+		if(type === 'json') {
+			try {
+				return JSON.parse(body);
+			} catch(e) {
+				return null;
+			}
+		} else {
+			return body;
+		}
 	};
 
 	Request.prototype.getHeader = function(header) {

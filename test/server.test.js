@@ -354,14 +354,64 @@
 
 			it('should pass the headers if there are some', function(done) {
 				var xhr = {
-					respond: function() {
-						assert.deepEqual(arguments[1], { 'Content-Type': 'text/html' });
+					respond: function(status, headers) {
+						assert.deepEqual(headers, { 'Content-Type': 'text/html' });
 						done();
 					}
 				};
 				var res = new Response(xhr);
 				res._headers = { 'Content-Type': 'text/html' };
 				res.send();
+			});
+		});
+
+		describe('json', function() {
+			it('should set the right header, text and responseType', function(done) {
+				var data = { hello: 'salut' };
+				var xhr = {
+					respond: function(status, headers, text) {
+						assert.equal(status, 200);
+						assert.property(headers, 'Content-Type');
+						assert.equal(headers['Content-Type'], 'application/json');
+						assert.deepEqual(text, JSON.stringify(data));
+						assert.equal(this.responseType, 'json');
+						done();
+					}
+				};
+				var res = new Response(xhr);
+
+				res.json(data);
+			});
+
+			it('should override only the content-type header', function(done) {
+				var xhr = {
+					respond: function(status, headers) {
+						assert.deepEqual(headers, {
+							'Content-Type': 'application/json',
+							'X-Foo': 'bar'
+						});
+						done();
+					}
+				};
+				var res = new Response(xhr);
+
+				res._headers = {
+					'Content-Type': 'text/html',
+					'X-Foo': 'bar'
+				};
+				res.json({});
+			});
+
+			it('should change the status if specified', function(done) {
+				var xhr = {
+					respond: function(status) {
+						assert.equal(status, 204);
+						done();
+					}
+				};
+				var res = new Response(xhr);
+
+				res.json(204, {});
 			});
 		});
 	});
@@ -391,6 +441,24 @@
 				var req = new Request(xhr);
 
 				assert.equal(req.body(), 'hello world');
+			});
+
+			it('should parse in json if specified', function() {
+				var xhr = {
+					requestBody: JSON.stringify({ hello: 'salut' })
+				};
+				var req = new Request(xhr);
+
+				assert.deepEqual(req.body('json'), { hello: 'salut' });
+			});
+
+			it('should return null if the body can not be parsed', function() {
+				var xhr = {
+					requestBody: '{ hello: "salut" }'
+				};
+				var req = new Request(xhr);
+
+				assert.strictEqual(req.body('json'), null);
 			});
 		});
 
