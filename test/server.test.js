@@ -207,9 +207,7 @@
 				server.expectations.push(new Expectation({
 					method: 'GET',
 					url: /hello/,
-					handler: function() {
-						called = true;
-					}
+					handler: function() { called = true; }
 				}));
 				var xhr = {
 					url: '/hello/world',
@@ -218,6 +216,22 @@
 
 				server.lookUp(xhr);
 				assert.isTrue(called);
+			});
+
+			it('should not match if not strictly equal to a string', function() {
+				var called = false;
+				server.expectations.push(new Expectation({
+					method: 'GET',
+					url: '/hello',
+					handler: function() { called = true; }
+				}));
+				var xhr = {
+					url: '/hello/world',
+					method: 'GET'
+				};
+
+				server.lookUp(xhr);
+				assert.isFalse(called);
 			});
 		});
 

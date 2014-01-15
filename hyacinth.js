@@ -557,11 +557,18 @@
 	}
 
 	var noop = function() {};
+	var urlMatch = function(matcher, url) {
+		if(matcher instanceof RegExp) {
+			return url.match(matcher);
+		} else {
+			return url === matcher;
+		}
+	};
 
 	Expectation.prototype.handle = function(xhr) {
 		if(this.method !== xhr.method) {
 			noop();
-		} else if(!xhr.url.match(this.url)) {
+		} else if(!urlMatch(this.url, xhr.url)) {
 			noop();
 		} else {
 			var req = new Request(xhr);

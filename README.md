@@ -50,7 +50,7 @@ It replaces the fake XMLHttpRequest setted by `server.launch` by the original on
 
 #### verb(url, handler)
 
-<verb> has to be replace with one of the following:
+_verb_ has to be replace with one of the following:
 * get
 * post
 * put
@@ -58,8 +58,8 @@ It replaces the fake XMLHttpRequest setted by `server.launch` by the original on
 * head
 * options
 
-It register a handler to any request using the <verb> http method and to the url.
-* url can be either a string (it might not behave as it should for the current version) or a regexp. If you want more url filtering, see Request object below.
+It register a handler to any request using the _verb_ http method and to the url.
+* url can be either a string or a regexp. If you want more url filtering, see Request object below.
 * handler is a function with two parameter: `function(req, res)` req and res being respectively a Request and a Response instance.
 
 ### Request
