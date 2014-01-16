@@ -66,6 +66,7 @@
 				xhr.open('POST', '/');
 				xhr.send();
 
+				exp.handle(xhr);
 				assert.isFalse(called);
 			});
 
@@ -84,6 +85,15 @@
 
 				exp.handle(xhr);
 				assert.isFalse(called);
+			});
+
+			it('should call the next function if handle failed', function() {
+				var called = false;
+				var exp = new Expectation({ method: 'GET', url: '/' });
+				var xhr = {};
+
+				exp.handle(xhr, function() { called = true; });
+				assert.isTrue(called);
 			});
 		});
 
@@ -185,21 +195,15 @@
 			});
 
 			it('should not execute if no expectation matchs the xhr', function() {
-				var called = false;
 				server.expectations.push(new Expectation({
 					method: 'POST',
 					url: '/',
-					handler: function() {
-						called = true;
-					}
 				}));
-				var xhr = {
-					url: '/',
-					method: 'GET'
-				};
+				var xhr = { url: '/', method: 'GET' };
 
-				server.lookUp(xhr);
-				assert.isFalse(called);
+				assert.throw(function() {
+					server.lookUp(xhr);
+				});
 			});
 
 			it('should match the actual url with a regexp', function() {
@@ -219,19 +223,15 @@
 			});
 
 			it('should not match if not strictly equal to a string', function() {
-				var called = false;
 				server.expectations.push(new Expectation({
 					method: 'GET',
 					url: '/hello',
-					handler: function() { called = true; }
 				}));
-				var xhr = {
-					url: '/hello/world',
-					method: 'GET'
-				};
+				var xhr = { url: '/hello/world', method: 'GET' };
 
-				server.lookUp(xhr);
-				assert.isFalse(called);
+				assert.throw(function() {
+					server.lookUp(xhr);
+				});
 			});
 		});
 

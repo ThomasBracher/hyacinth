@@ -541,10 +541,27 @@
 	Server.prototype.put = verb('PUT');
 	Server.prototype.delete = verb('DELETE');
 
+	function ExpectationsIterator(xhr, collection) {
+		this.xhr = xhr;
+		this.index = -1;
+		this.collection = collection;
+	}
+
+	ExpectationsIterator.prototype.next = function() {
+		this.index += 1;
+		if(this.collection.length <= this.index) {
+			throw new Error('no expectation registered for this xhr', this.xhr);
+		} else {
+			var _this = this;
+			this.collection[this.index].handle(this.xhr, function() {
+				_this.next();
+			});
+		}
+	};
+
 	Server.prototype.lookUp = function(xhr) {
-		this.expectations.forEach(function(expectation) {
-			expectation.handle(xhr);
-		});
+		var iterator = new ExpectationsIterator(xhr, this.expectations);
+		iterator.next();
 	};
 
 	function Expectation(spec) {
@@ -565,11 +582,11 @@
 		}
 	};
 
-	Expectation.prototype.handle = function(xhr) {
+	Expectation.prototype.handle = function(xhr, next) {
 		if(this.method !== xhr.method) {
-			noop();
+			(next || noop)();
 		} else if(!urlMatch(this.url, xhr.url)) {
-			noop();
+			(next || noop)();
 		} else {
 			var req = new Request(xhr);
 			var res = new Response(xhr);
