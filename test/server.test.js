@@ -447,6 +447,15 @@
 			});
 		});
 
+		it('should return the requested raw url', function() {
+			var xhr = {
+				url: '/hello/world'
+			};
+			var req = new Request(xhr);
+
+			assert.equal(req.url, '/hello/world');
+		});
+
 		describe('body', function() {
 			it('should return the body of the xhr', function() {
 				var xhr = {
@@ -498,14 +507,34 @@
 
 				assert.equal(req.getHeader('cOntENt-tyPe'), 'application/json');
 			});
+		});
 
-			it('should return the requested raw url', function() {
+		describe('query', function() {
+			it('should be empty by default', function() {
+				var req = new Request({});
+
+				assert.deepEqual(req.query, {});
+			});
+
+			it('should be empty if no query is to find in the url', function() {
 				var xhr = {
-					url: '/hello/world'
+					url: '/hello?'
 				};
 				var req = new Request(xhr);
 
-				assert.equal(req.url, '/hello/world');
+				assert.deepEqual(req.query, {});
+			});
+
+			it('should map the query parameters passed in the url', function() {
+				var xhr = {
+					url: '/hello?name=tom&color=blue'
+				};
+				var req = new Request(xhr);
+
+				assert.deepEqual(req.query, {
+					color: 'blue',
+					name: 'tom',
+				});
 			});
 		});
 	});

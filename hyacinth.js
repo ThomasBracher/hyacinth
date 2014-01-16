@@ -611,12 +611,29 @@
 		this.xhr.respond(status, this._headers, JSON.stringify(data));
 	};
 
+	var parseQuery = function(url) {
+		var query = {};
+		var queries = url.split('?').slice(1).join('');
+		var couples = queries.split('&');
+		couples.forEach(function(couple) {
+			var split = couple.split('=');
+			var key = split.shift();
+			if(key === '') {
+				return;
+			}
+			var value = split.shift();
+			query[key] = value;
+		});
+		return query;
+	};
+
 	function Request(xhr) {
 		if(!xhr) {
 			throw new Error('MissingArgumentError');
 		}
 		this.xhr = xhr;
-		this.url = xhr.url;
+		this.url = xhr.url || '';
+		this.query = parseQuery(this.url);
 	}
 
 	Request.prototype.body = function(type) {
