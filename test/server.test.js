@@ -66,7 +66,7 @@
 				xhr.open('POST', '/');
 				xhr.send();
 
-				exp.handle(xhr);
+				exp.handle(xhr, function() {});
 				assert.isFalse(called);
 			});
 
@@ -83,7 +83,7 @@
 				xhr.open('GET', '/url');
 				xhr.send();
 
-				exp.handle(xhr);
+				exp.handle(xhr, function() {});
 				assert.isFalse(called);
 			});
 
@@ -482,6 +482,16 @@
 				var req = new Request(xhr);
 
 				assert.strictEqual(req.body('json'), null);
+			});
+
+			it('should parse in dom if xml is specified', function() {
+				var xmlContent = new DOMParser().parseFromString('<div>Hello</div>');
+				var xhr = {
+					requestBody: '<div>Hello</div>'
+				};
+				var req = new Request(xhr);
+
+				assert.deepEqual(req.body('xml'), xmlContent);
 			});
 		});
 

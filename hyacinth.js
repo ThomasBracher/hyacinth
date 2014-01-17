@@ -170,7 +170,7 @@
 		this.dispatchEvent(new Event('readystatechange'));
 	};
 
-	FakeRequest.prototype.open = function(method, url, async, user, password) {
+	FakeRequest.prototype.setMethod = function(method) {
 		var methods = /connect|delete|get|head|options|post|put|trace|track/i;
 		if(method.match(methods)) {
 			this.method = method.toUpperCase();
@@ -180,6 +180,10 @@
 		if(this.method.match(/CONNECT|TRACE|TRACK/)) {
 			throw new Error('SecurityError');
 		}
+	};
+
+	FakeRequest.prototype.open = function(method, url, async, user, password) {
+		this.setMethod(method);
 		this.url = url;
 		this.setAsync(async);
 		this.user = user;
@@ -296,6 +300,26 @@
 		this.triggerSentEvent();
 	};
 
+	FakeRequest.prototype.completeUpload = function(cause) {
+		this.uploadComplete = true;
+		this.upload.dispatchEvent(new Event('progress'));
+		this.upload.dispatchEvent(new Event(cause));
+		this.upload.dispatchEvent(new Event('loadend'));
+	};
+
+	FakeRequest.prototype.uploadFinish = function(cause) {
+		this.dispatchEvent(new Event('progress'));
+		this.dispatchEvent(new Event(cause));
+		this.dispatchEvent(new Event('loadend'));
+	};
+
+	FakeRequest.prototype.dispatchUploadComplete = function(cause) {
+		this.uploadFinish(cause);
+		if(this.uploadComplete === false) {
+			this.completeUpload(cause);
+		}
+	};
+
 	FakeRequest.prototype.abort = function() {
 		this.errorFlag = true;
 
@@ -316,15 +340,7 @@
 
 		if(this.sendFlag === true && this.readyState !== FakeRequest.DONE) {
 			this.setReadyState(FakeRequest.DONE);
-			this.dispatchEvent(new Event('progress'));
-			this.dispatchEvent(new Event('abort'));
-			this.dispatchEvent(new Event('loadend'));
-			if(this.uploadComplete === false) {
-				this.uploadComplete = true;
-				this.upload.dispatchEvent(new Event('progress'));
-				this.upload.dispatchEvent(new Event('abort'));
-				this.upload.dispatchEvent(new Event('loadend'));
-			}
+			this.dispatchUploadComplete('abort');
 		}
 		this.sendFlag = false;
 		this.readyState = FakeRequest.UNSENT;
@@ -356,6 +372,25 @@
 		}
 	};
 
+	FakeRequest.prototype.setXMLResponse = function() {
+		if(this.responseText !== '') {
+			var parser = new DOMParser();
+			this.responseXML = parser.parseFromString(this.responseText, this.getResponseHeader('Content-Type') || 'text/xml');
+		}
+	};
+
+	FakeRequest.prototype.setResponse = function() {
+		if(this.responseType === 'json') {
+			try {
+				this.response = JSON.parse(this.responseText);
+			} catch(e) {
+				this.response = null;
+			}
+		} else {
+			this.response = this.responseText;
+		}
+	};
+
 	FakeRequest.prototype.setResponseBody = function(body) {
 		this.assertOpenAndHeadersReceived();
 		this.responseNotSent();
@@ -367,31 +402,15 @@
 		}
 		this.responseText = body;
 
-		if(this.responseText !== '') {
-			var parser = new DOMParser();
-			this.responseXML = parser.parseFromString(this.responseText, this.getResponseHeader('Content-Type') || 'text/xml');
-		}
-
-		if(this.responseType === 'json') {
-			try {
-				this.response = JSON.parse(this.responseText);
-			} catch(e) {
-				this.response = null;
-			}
-		} else if(this.responseType === 'arraybuffer') {
-			this.response = new ArrayBuffer();
-		} else {
-			this.response = this.responseText;
-		}
+		this.setXMLResponse();
+		this.setResponse();
 
 		if(this.async) {
 			this.setReadyState(FakeRequest.DONE);
 		} else {
 			this.readyState = FakeRequest.DONE;
 		}
-		this.dispatchEvent(new Event('progress'));
-		this.dispatchEvent(new Event('load'));
-		this.dispatchEvent(new Event('loadend'));
+		this.uploadFinish('load');
 	};
 
 	var statusTexts = {
@@ -438,15 +457,8 @@
 		505: "HTTP Version Not Supported"
 	};
 
-	FakeRequest.prototype.completeUpload = function() {
-		this.uploadComplete = true;
-		this.upload.dispatchEvent(new Event('progress'));
-		this.upload.dispatchEvent(new Event('load'));
-		this.upload.dispatchEvent(new Event('loadend'));
-	};
-
 	FakeRequest.prototype.respond = function(status, headers, body) {
-		this.completeUpload();
+		this.completeUpload('load');
 		this.status = status || 200;
 		this.statusText = statusTexts[status];
 		this.setResponseHeaders(headers);
@@ -573,7 +585,6 @@
 		this.handler = spec.handler || function() {};
 	}
 
-	var noop = function() {};
 	var urlMatch = function(matcher, url) {
 		if(matcher instanceof RegExp) {
 			return url.match(matcher);
@@ -584,9 +595,9 @@
 
 	Expectation.prototype.handle = function(xhr, next) {
 		if(this.method !== xhr.method) {
-			(next || noop)();
+			next();
 		} else if(!urlMatch(this.url, xhr.url)) {
-			(next || noop)();
+			next();
 		} else {
 			var req = new Request(xhr);
 			var res = new Response(xhr);
@@ -606,22 +617,22 @@
 		this._headers[header] = value;
 	};
 
-	Response.prototype.send = function() {
-		var status = arguments[0] || 200;
-		var text = arguments[1] || '';
-		if(typeof arguments[0] === 'string') {
+	Response.prototype.send = function(code, body) {
+		var status = code || 200;
+		var text = body || '';
+		if(typeof code === 'string') {
 			status = 200;
-			text = arguments[0];
+			text = code;
 		}
 		this.xhr.respond(status, this._headers, text);
 	};
 
-	Response.prototype.json = function() {
-		var status = arguments[0] || 200;
-		var data = arguments[1] || '';
-		if(typeof arguments[1] === 'undefined') {
+	Response.prototype.json = function(code, body) {
+		var status = code || 200;
+		var data = body || '';
+		if(typeof body === 'undefined') {
 			status = 200;
-			data = arguments[0];
+			data = code;
 		}
 		this._headers['Content-Type'] = 'application/json';
 		this.xhr.responseType = 'json';
@@ -661,6 +672,9 @@
 			} catch(e) {
 				return null;
 			}
+		} else if(type === 'xml') {
+			var parser = new DOMParser();
+			return parser.parseFromString(body);
 		} else {
 			return body;
 		}
