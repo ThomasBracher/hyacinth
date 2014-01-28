@@ -22,78 +22,51 @@
 				assertWith('doesNotThrow', { method: 'GET', url: '/' });
 			});
 
-			it('should handle a identical xhr', function() {
-				var called = false;
-				var exp = new Expectation({
-					method: 'GET',
-					url: '/',
-					handler: function() {
-						called = true;
-					}
-				});
+			it('should handle with the same req and res', function() {
 				var xhr = new hyacinth.FakeXMLHttpRequest();
 				xhr.open('GET', '/');
-				xhr.send();
-
-				exp.handle(xhr);
-				assert.isTrue(called);
-			});
-
-			it('should respond with a Request and Response as argument', function(done) {
-				var xhr = { method: 'GET', url: '/' };
-				var exp = new Expectation({
-					method: 'GET', url: '/',
-					handler: function(req, res) {
-						assert.instanceOf(req, Request);
-						assert.instanceOf(res, Response);
-						done();
-					}
-				});
-
-				exp.handle(xhr);
-			});
-
-			it('should not handle if the method is different', function() {
-				var called = false;
+        var req = new Request(xhr);
+        var res = new Response(xhr);
 				var exp = new Expectation({
 					method: 'GET',
 					url: '/',
-					handler: function() {
-						called = true;
+					handler: function(request, response) {
+            assert.equal(req, request);
+            assert.equal(res, response);
 					}
 				});
-				var xhr = new hyacinth.FakeXMLHttpRequest();
-				xhr.open('POST', '/');
-				xhr.send();
 
-				exp.handle(xhr, function() {});
-				assert.isFalse(called);
+				exp.handle(req, res);
+			});
+
+      it('should pass the next argument to the handler', function(done) {
+        var exp = new Expectation({
+          method: 'GET', url: 'super',
+          handler: function(req, res, next) {
+            next();
+          }
+        });
+        exp.handle(null, null, done);
+      });
+
+			it('should not handle if the method is different', function() {
+				var exp = new Expectation({
+					method: 'GET',
+					url: '/',
+					handler: function() {}
+				});
+
+				assert.isFalse(exp.match('POST', '/'));
 			});
 
 			it('should not handle if the url is different', function() {
-				var called = false;
 				var exp = new Expectation({
 					method: 'GET',
 					url: '/irl',
-					handler: function() {
-						called = true;
-					}
+					handler: function() {}
 				});
-				var xhr = new hyacinth.FakeXMLHttpRequest();
-				xhr.open('GET', '/url');
-				xhr.send();
 
-				exp.handle(xhr, function() {});
-				assert.isFalse(called);
-			});
-
-			it('should call the next function if handle failed', function() {
-				var called = false;
-				var exp = new Expectation({ method: 'GET', url: '/' });
-				var xhr = {};
-
-				exp.handle(xhr, function() { called = true; });
-				assert.isTrue(called);
+				assert.isFalse(exp.match('GET', '/super'));
 			});
 		});
 
@@ -234,6 +207,22 @@
         server.lookUp(xhr);
         assert.equal(xhr.status, 404);
 			});
+
+      it('should call the first handler to respond and not the others', function() {
+        server.expectations.push(new Expectation({
+          method: 'GET', url: '/',
+          handler: function(req, res) { res.send(200); }
+        }));
+        server.expectations.push(new Expectation({
+          method: 'GET', url: '/',
+          handler: function(req, res) { assert.fail(); res.send(500); }
+        }));
+        var xhr = new hyacinth.FakeXMLHttpRequest();
+        xhr.open('GET', '/');
+
+        server.lookUp(xhr);
+        assert.equal(xhr.status, 200);
+      });
 		});
 
 		describe('verb', function() {
@@ -378,6 +367,17 @@
 				res._headers = { 'Content-Type': 'text/html' };
 				res.send();
 			});
+
+      it('should set the send flag', function() {
+        var xhr = {
+          respond: function() {}
+        };
+
+        var res = new Response(xhr);
+        assert.isFalse(res.isSend);
+        res.send(200);
+        assert.isTrue(res.isSend);
+      });
 		});
 
 		describe('json', function() {

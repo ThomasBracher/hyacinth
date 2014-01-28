@@ -555,6 +555,8 @@
 		this.xhr = xhr;
 		this.index = -1;
 		this.collection = collection;
+    this.req = new Request(xhr);
+    this.res = new Response(xhr);
 	}
 
   ExpectationsIterator.prototype.noMoreHandler = function() {
@@ -567,10 +569,12 @@
       var res = new Response(this.xhr);
       res.send(404, 'no Expectation setted for: (' + this.xhr.method + ', "' + this.xhr.url + '")');
 		} else {
-			var _this = this;
-			this.collection[this.index].handle(this.xhr, function() {
-				_this.next();
-			});
+      var expectation = this.collection[this.index];
+      if(expectation.match(this.xhr.method, this.xhr.url)) {
+        expectation.handle(this.req, this.res, this.next);
+      } else {
+        this.next();
+      }
 		}
 	};
 
@@ -596,22 +600,19 @@
 		}
 	};
 
-	Expectation.prototype.handle = function(xhr, next) {
-		if(this.method !== xhr.method) {
-			next();
-		} else if(!urlMatch(this.url, xhr.url)) {
-			next();
-		} else {
-			var req = new Request(xhr);
-			var res = new Response(xhr);
-			this.handler.call(null, req, res);
-		}
+  Expectation.prototype.match = function(method, url) {
+    return this.method === method && urlMatch(this.url, url);
+  };
+
+	Expectation.prototype.handle = function(req, res, next) {
+    this.handler.call(null, req, res, next);
 	};
 
 	function Response(xhr) {
 		if(arguments[0] === undefined) {
 			throw new Error('ArgumentMissingError');
 		}
+    this.isSend = false;
 		this._headers = {};
 		this.xhr = xhr;
 	}
@@ -628,6 +629,7 @@
 			text = code;
 		}
 		this.xhr.respond(status, this._headers, text);
+    this.isSend = true;
 	};
 
 	Response.prototype.json = function(code, body) {
