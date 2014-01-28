@@ -300,21 +300,19 @@
 		this.triggerSentEvent();
 	};
 
-	FakeRequest.prototype.completeUpload = function(cause) {
-		this.uploadComplete = true;
-		this.upload.dispatchEvent(new Event('progress'));
-		this.upload.dispatchEvent(new Event(cause));
-		this.upload.dispatchEvent(new Event('loadend'));
+	var uploadFinishEvents = function(root, cause) {
+		root.dispatchEvent(new Event('progress'));
+		root.dispatchEvent(new Event(cause));
+		root.dispatchEvent(new Event('loadend'));
 	};
 
-	FakeRequest.prototype.uploadFinish = function(cause) {
-		this.dispatchEvent(new Event('progress'));
-		this.dispatchEvent(new Event(cause));
-		this.dispatchEvent(new Event('loadend'));
+	FakeRequest.prototype.completeUpload = function(cause) {
+		this.uploadComplete = true;
+		uploadFinishEvents(this.upload, cause);
 	};
 
 	FakeRequest.prototype.dispatchUploadComplete = function(cause) {
-		this.uploadFinish(cause);
+		uploadFinishEvents(this, cause);
 		if(this.uploadComplete === false) {
 			this.completeUpload(cause);
 		}
@@ -410,7 +408,7 @@
 		} else {
 			this.readyState = FakeRequest.DONE;
 		}
-		this.uploadFinish('load');
+		uploadFinishEvents(this, 'load');
 	};
 
 	var statusTexts = {
@@ -559,10 +557,15 @@
 		this.collection = collection;
 	}
 
+  ExpectationsIterator.prototype.noMoreHandler = function() {
+    return this.collection.length <= this.index;
+  };
+
 	ExpectationsIterator.prototype.next = function() {
 		this.index += 1;
-		if(this.collection.length <= this.index) {
-			throw new Error('no expectation registered for this xhr', this.xhr);
+		if(this.noMoreHandler()) {
+      var res = new Response(this.xhr);
+      res.send(404, 'no Expectation setted for: (' + this.xhr.method + ', "' + this.xhr.url + '")');
 		} else {
 			var _this = this;
 			this.collection[this.index].handle(this.xhr, function() {
@@ -697,3 +700,4 @@
 	hyacinth.XHREventTarget = XHREventTarget;
 	hyacinth.FakeXMLHttpRequest = FakeRequest;
 })();
+

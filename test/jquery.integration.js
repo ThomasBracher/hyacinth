@@ -56,5 +56,47 @@
 				done();
 			});
 		});
+
+    it('should respond to $.ajax', function(done) {
+      server.get('/', function(req, res) {
+        res.send(200);
+      });
+
+      $.ajax({
+        type: 'GET',
+        url: '/',
+      }).then(function() {
+        done();
+      });
+    });
+
+    it('should respond to put request', function(done) {
+      server.put('/', function(req, res) {
+        res.send(200);
+      });
+
+      $.ajax({
+        type: 'PUT',
+        url: '/'
+      }).then(function() {
+        done();
+      });
+    });
+
+    it('should repond dataType request', function(done) {
+      server.put('/', function(req, res) {
+        assert.equal(req.body(), 'hello');
+        res.json({});
+      });
+
+      $.ajax({
+        type: 'PUT',
+        url: '/',
+        data: 'hello',
+        dataType: 'json'
+      }).then(function() {
+        done();
+      });
+    });
 	});
 })();

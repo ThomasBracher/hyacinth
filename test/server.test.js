@@ -199,11 +199,12 @@
 					method: 'POST',
 					url: '/',
 				}));
-				var xhr = { url: '/', method: 'GET' };
-
-				assert.throw(function() {
-					server.lookUp(xhr);
-				});
+        var xhr = new hyacinth.FakeXMLHttpRequest();
+        xhr.open('GET', '/');
+        
+        server.lookUp(xhr);
+        assert.equal(xhr.status, 404);
+        assert.equal(xhr.responseText, 'no Expectation setted for: (GET, "/")');
 			});
 
 			it('should match the actual url with a regexp', function() {
@@ -227,11 +228,11 @@
 					method: 'GET',
 					url: '/hello',
 				}));
-				var xhr = { url: '/hello/world', method: 'GET' };
+        var xhr = new hyacinth.FakeXMLHttpRequest();
+        xhr.open('GET', '/hello/world');
 
-				assert.throw(function() {
-					server.lookUp(xhr);
-				});
+        server.lookUp(xhr);
+        assert.equal(xhr.status, 404);
 			});
 		});
 
