@@ -32,4 +32,5 @@ module.exports = function(grunt) {
 	grunt.loadNpmTasks('grunt-contrib-jshint');
 
 	grunt.registerTask('default', ['jshint', 'mocha']);
+	grunt.registerTask('test', ['jshint', 'mocha']);
 };

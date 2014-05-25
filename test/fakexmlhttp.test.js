@@ -5,6 +5,12 @@
 
 	describe('fakeXMLHttpRequest', function() {
 		var Request = hyacinth.FakeXMLHttpRequest;
+    var xhr;
+
+    before(function(done) {
+      xhr = new Request();
+      done();
+    });
 
 		it('should be a constructor', function() {
 			assert.isFunction(Request);
@@ -12,8 +18,6 @@
 		});
 
 		it('should inherits xhrEventTarget', function() {
-			var xhr = new Request();
-
 			assert.instanceOf(xhr, hyacinth.XHREventTarget);
 		});
 
@@ -29,8 +33,6 @@
 		});
 
 		it('should start with null onreadystatechange handler', function() {
-			var xhr = new Request();
-
 			assert.isNull(xhr.onreadystatechange);
 		});
 
@@ -43,32 +45,22 @@
 		});
 
 		it('should have sendFlag initially unset', function() {
-			var xhr = new Request();
-
 			assert.isFalse(xhr.sendFlag);
 		});
 
 		it('should have errorFlag initially unset', function() {
-			var xhr = new Request();
-
 			assert.isFalse(xhr.errorFlag);
 		});
 
 		it('should have request headers initially empty', function() {
-			var xhr = new Request();
-
 			assert.deepEqual(xhr.requestHeaders, {});
 		});
 
 		it('should have a request body initially null', function() {
-			var xhr = new Request();
-
 			assert.isNull(xhr.requestBody);
 		});
 
 		it('should have synchronous, upload complete and upload events flags unset', function() {
-			var xhr = new Request();
-
 			assert.isTrue(xhr.async);
 			assert.isFalse(xhr.uploadComplete);
 			assert.isFalse(xhr.uploadEvents);
