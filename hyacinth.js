@@ -2,6 +2,7 @@
 	"use strict";
 
 	var hyacinth = window.hyacinth = window.hyacinth || {};
+	hyacinth.version = "0.1.0";
 
 	function Event(name) {
 		this.type = name;

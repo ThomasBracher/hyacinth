@@ -1,3 +1,9 @@
 language: node_js
 before_script:
   - npm install -g grunt-cli
+
+deploy:
+  provider: npm
+  api_key: 89542149-d366-4ee9-a3bd-afb4f7f22995
+  on:
+    tags: true
