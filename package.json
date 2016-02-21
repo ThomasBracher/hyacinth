@@ -1,5 +1,5 @@
 {
-  "name": "hyacinth",
+  "name": "hyacinth.js",
   "version": "0.0.1",
   "description": "high level mock of some server api on the browser side",
   "main": "hyacinth.js",
@@ -12,6 +12,7 @@
     "browser"
   ],
   "author": "Thomas Bracher",
+  "repository": "github.com/ThomasBracher/hyacinth.git",
   "license": "MIT",
   "devDependencies": {
     "grunt-contrib-watch": "~0.5.3",
