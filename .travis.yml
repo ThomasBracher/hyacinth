@@ -1,9 +1,11 @@
 language: node_js
 before_script:
-  - npm install -g grunt-cli
-
+- npm install -g grunt-cli
 deploy:
   provider: npm
-  api_key: 89542149-d366-4ee9-a3bd-afb4f7f22995
+  email: thomas.bracher@cpe.fr
+  api_key:
+    secure: nxATgFHSYHMtN5UBUmBTsgjiF9wxdKMCDTT1KjP2vMQJACk19cnD415ALJv4wtbHsmD6z1ux2/YdDjNQ7pi7jFxHU2t6d/RDAsX+ogSwOUiscJJh7k3barBPPY5rHyBsldcerDUHshh6LEaGu4Q7PDoMPytNp+JNICRmquV/VPY=
   on:
     tags: true
+    repo: ThomasBracher/hyacinth
