@@ -1,7 +1,15 @@
 # Hyacinth, the http mock on browser side
+[![Build Status](https://travis-ci.org/ThomasBracher/hyacinth.svg?branch=master)](https://travis-ci.org/ThomasBracher/hyacinth)
+
 
 ## Forewords
 There is not much http mocking on the browser side and those existing are low-level or tied to a library. The goal of hyacinth is to create a high level http mock with no dependence to jQuery or another library. You will still need to work with a test framework.
+
+## Installation
+Hyacinth is only available with npm for now:
+```
+npm install hyacinth.js --save-dev
+```
 
 ## Getting Started
 The core of Hyacinth is `hyacinth.Server`. It carries the expectations and responds in place of the original XMLHttpRequest.

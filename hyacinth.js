@@ -555,26 +555,26 @@
 		this.xhr = xhr;
 		this.index = -1;
 		this.collection = collection;
-    this.req = new Request(xhr);
-    this.res = new Response(xhr);
+		this.req = new Request(xhr);
+		this.res = new Response(xhr);
 	}
 
-  ExpectationsIterator.prototype.noMoreHandler = function() {
-    return this.collection.length <= this.index;
-  };
+	ExpectationsIterator.prototype.noMoreHandler = function() {
+		return this.collection.length <= this.index;
+	};
 
 	ExpectationsIterator.prototype.next = function() {
 		this.index += 1;
 		if(this.noMoreHandler()) {
-      var res = new Response(this.xhr);
-      res.send(404, 'no Expectation setted for: (' + this.xhr.method + ', "' + this.xhr.url + '")');
+			var res = new Response(this.xhr);
+			res.send(404, 'no Expectation setted for: (' + this.xhr.method + ', "' + this.xhr.url + '")');
 		} else {
-      var expectation = this.collection[this.index];
-      if(expectation.match(this.xhr.method, this.xhr.url)) {
-        expectation.handle(this.req, this.res, this.next);
-      } else {
-        this.next();
-      }
+			var expectation = this.collection[this.index];
+			if(expectation.match(this.xhr.method, this.xhr.url)) {
+				expectation.handle(this.req, this.res, this.next);
+			} else {
+				this.next();
+			}
 		}
 	};
 
@@ -600,19 +600,19 @@
 		}
 	};
 
-  Expectation.prototype.match = function(method, url) {
-    return this.method === method && urlMatch(this.url, url);
-  };
+	Expectation.prototype.match = function(method, url) {
+		return this.method === method && urlMatch(this.url, url);
+	};
 
 	Expectation.prototype.handle = function(req, res, next) {
-    this.handler.call(null, req, res, next);
+		this.handler.call(null, req, res, next);
 	};
 
 	function Response(xhr) {
 		if(arguments[0] === undefined) {
 			throw new Error('ArgumentMissingError');
 		}
-    this.isSend = false;
+		this.isSend = false;
 		this._headers = {};
 		this.xhr = xhr;
 	}
@@ -629,7 +629,7 @@
 			text = code;
 		}
 		this.xhr.respond(status, this._headers, text);
-    this.isSend = true;
+		this.isSend = true;
 	};
 
 	Response.prototype.json = function(code, body) {
@@ -692,7 +692,7 @@
 		});
 		return headers[match];
 	};
-	
+
 	hyacinth.Request = Request;
 	hyacinth.Response = Response;
 	hyacinth.Server = Server;
@@ -702,4 +702,3 @@
 	hyacinth.XHREventTarget = XHREventTarget;
 	hyacinth.FakeXMLHttpRequest = FakeRequest;
 })();
-
