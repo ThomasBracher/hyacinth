@@ -8,7 +8,7 @@ There is not much http mocking on the browser side and those existing are low-le
 ## Installation
 Hyacinth is only available with npm for now:
 ```
-npm install hyacinth.js --save-dev
+npm install hyacinth-js --save-dev
 ```
 
 ## Getting Started

@@ -1,5 +1,5 @@
 {
-  "name": "hyacinth.js",
+  "name": "hyacinth-js",
   "version": "0.1.0",
   "description": "high level mock of some server api on the browser side",
   "main": "hyacinth.js",
