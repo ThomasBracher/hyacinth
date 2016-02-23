@@ -12,13 +12,6 @@
 		this.defaultPrevented = true;
 	};
 
-	var progressEvent = function(total, loaded) {
-		var e = new Event('progress');
-		e.total = total;
-		e.loaded = loaded;
-		return e;
-	};
-
 	function EventTarget() {
 		this.listeners = {};
 	}

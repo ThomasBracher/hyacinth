@@ -394,7 +394,6 @@
 			});
 
 			it('should fire progress event named loadstart if async', function(done) {
-				var called = false;
 				xhr.open('GET', '/');
 				xhr.onloadstart = function() {
 					done();
