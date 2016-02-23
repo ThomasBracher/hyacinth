@@ -4,17 +4,12 @@ module.exports = function(grunt) {
 	grunt.initConfig({
 		watch: {
 			test: {
-				files: ['test/**/*.js', 'test/**/*.html'],
-				tasks: ['jshint:test', 'mocha']
+				files: ['test/**/*.js'],
+				tasks: ['jshint:test']
 			},
 			lib: {
 				files: ['hyacinth.js'],
-				tasks: ['jshint:lib', 'mocha']
-			}
-		},
-		mocha: {
-			test: {
-				src: ['test/**/*.html']
+				tasks: ['jshint:lib']
 			}
 		},
 		jshint: {
@@ -22,15 +17,14 @@ module.exports = function(grunt) {
 				src: 'hyacinth.js'
 			},
 			test: {
-				src: ['test/**/*.js', '!test/lib/**/*.js']
+				src: ['test/**/*.js']
 			}
 		}
 	});
 
 	grunt.loadNpmTasks('grunt-contrib-watch');
-	grunt.loadNpmTasks('grunt-mocha');
 	grunt.loadNpmTasks('grunt-contrib-jshint');
 
-	grunt.registerTask('default', ['jshint', 'mocha']);
-	grunt.registerTask('test', ['jshint', 'mocha']);
+	grunt.registerTask('default', ['jshint']);
+	grunt.registerTask('test', ['jshint']);
 };

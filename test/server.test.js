@@ -174,7 +174,7 @@
 				}));
         var xhr = new hyacinth.FakeXMLHttpRequest();
         xhr.open('GET', '/');
-        
+
         server.lookUp(xhr);
         assert.equal(xhr.status, 404);
         assert.equal(xhr.responseText, 'no Expectation setted for: (GET, "/")');
@@ -486,7 +486,7 @@
 			});
 
 			it('should parse in dom if xml is specified', function() {
-				var xmlContent = new DOMParser().parseFromString('<div>Hello</div>');
+				var xmlContent = new DOMParser().parseFromString('<div>Hello</div>', 'text/html');
 				var xhr = {
 					requestBody: '<div>Hello</div>'
 				};

@@ -4,7 +4,8 @@
   "description": "high level mock of some server api on the browser side",
   "main": "hyacinth.js",
   "scripts": {
-    "test": "grunt"
+    "test": "grunt && karma start karma.conf.js --single-run",
+    "karma": "karma start karma.conf.js"
   },
   "keywords": [
     "mock",
@@ -15,9 +16,13 @@
   "repository": "github.com/ThomasBracher/hyacinth.git",
   "license": "MIT",
   "devDependencies": {
-    "grunt-contrib-watch": "~0.5.3",
+    "chai": "^3.5.0",
     "grunt": "~0.4.2",
-    "grunt-mocha": "~0.4.7",
-    "grunt-contrib-jshint": "~0.8.0"
+    "grunt-contrib-jshint": "~0.8.0",
+    "grunt-contrib-watch": "~0.5.3",
+    "karma": "^0.13.21",
+    "karma-chai": "^0.1.0",
+    "karma-firefox-launcher": "^0.1.7",
+    "karma-mocha": "^0.2.2"
   }
 }

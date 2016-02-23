@@ -448,7 +448,7 @@
 
 				xhr.send('Data');
 			});
-			
+
 			it('should dispatch onsend when async', function(done) {
 				xhr.open('POST', '/', false);
 				xhr.onsend = function(e) {
@@ -459,7 +459,7 @@
 				xhr.send('Data');
 			});
 		});
-		
+
 		describe('abort', function() {
 			var xhr;
 
@@ -664,14 +664,14 @@
 				var xhr = new Request();
 				xhr.open('GET', '/', false);
 				xhr.send();
-				
+
 				assert.throw(function() {
 					xhr.abort();
 				}, 'AbortError');
 				assert.equal(xhr.readyState, Request.DONE);
 			});
 		});
-		
+
 		describe('setResponseHeaders', function() {
 			var xhr;
 
@@ -768,7 +768,7 @@
 				var xhr = new Request();
 				xhr.open('GET', '/');
 				xhr.send();
-				
+
 				assert.throw(function() {
 					xhr.setResponseBody('');
 				});
@@ -829,7 +829,7 @@
 				xhr.open('GET', '/', false);
 				xhr.send();
 				callCount = spy.length;
-				
+
 				xhr.setResponseHeaders({});
 				xhr.setResponseBody('hello world super body');
 
@@ -1057,7 +1057,7 @@
 					'set-COOKIE': 'one',
 					'SET-cookie2': 'two'
 				};
-				
+
 				assert.isNull(xhr.getResponseHeader('set-COOKIE'));
 				assert.isNull(xhr.getResponseHeader('sEt-coOkie2'));
 			});
@@ -1281,9 +1281,9 @@
 				xhr.respond(200, { 'Content-Type': 'application/xml' }, '<div><h1>Hola!</h1><div>');
 
 				var doc = xhr.responseXML;
-				var elements = doc.documentElement.getElementsByTagName('h1');
+				var elements = doc.getElementsByTagName('h1');
 				assert.lengthOf(elements, 1);
-				assert.equal(elements[0].tagName, 'h1');
+				assert.equal(elements[0].tagName, 'H1');
 			});
 
 			it('should parse XML for test/xml content-type', function() {
@@ -1294,12 +1294,6 @@
 
 			it('should parse XML for custom xml content-type', function() {
 				xhr.respond(200, { 'Content-Type': 'text/html+xml' }, '<div><h1>Hola!</h1><div>');
-
-				assert.instanceOf(xhr.responseXML, Document);
-			});
-
-			it('should parse XML if no content-type', function() {
-				xhr.respond(200, {}, '<div><h1>Hola!</h1><div>');
 
 				assert.instanceOf(xhr.responseXML, Document);
 			});

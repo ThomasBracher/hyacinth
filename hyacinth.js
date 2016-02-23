@@ -374,7 +374,11 @@
 	FakeRequest.prototype.setXMLResponse = function() {
 		if(this.responseText !== '') {
 			var parser = new DOMParser();
-			this.responseXML = parser.parseFromString(this.responseText, this.getResponseHeader('Content-Type') || 'text/xml');
+			// If final MIME type is not null, text/html, text/xml, application/xml, or does not end in +xml, return null.
+			var mimeType = this.getResponseHeader('Content-Type');
+			if (mimeType && (mimeType.indexOf('+xml') !== -1 || mimeType == 'text/html' || mimeType == 'application/xml' || mimeType == 'text/xml')) {
+				this.responseXML = parser.parseFromString(this.responseText, 'text/html');
+			}
 		}
 	};
 
@@ -680,7 +684,7 @@
 			}
 		} else if(type === 'xml') {
 			var parser = new DOMParser();
-			return parser.parseFromString(body);
+			return parser.parseFromString(body, 'text/html');
 		} else {
 			return body;
 		}
