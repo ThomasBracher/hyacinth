@@ -16,8 +16,8 @@ module.exports = function(config) {
     autoWatch: true,
     browsers: ['Firefox'],
     singleRun: false,
-    concurrency: Infinity,,
-    client: { captureConsole: true, mocha: { bail: true } },
+    concurrency: Infinity,
+    client: { captureConsole: true, mocha: { bail: true } }
   };
 
   if (process.env.SAUCE_USERNAME && process.env.SAUCE_ACCESS_KEY) {
@@ -25,10 +25,7 @@ module.exports = function(config) {
       'SL_Chrome': {
         base: 'SauceLabs',
         platform: 'OS X 10.11',
-        browserName: 'chrome',
-        customData: {
-          awesome: true
-        }
+        browserName: 'chrome'
       },
       'SL_Firefox': {
         base: 'SauceLabs',
