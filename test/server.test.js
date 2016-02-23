@@ -492,7 +492,7 @@
 				};
 				var req = new Request(xhr);
 
-				assert.deepEqual(req.body('xml'), xmlContent);
+				assert.ok(xmlContent.isEqualNode(req.body('xml')));
 			});
 		});
 
