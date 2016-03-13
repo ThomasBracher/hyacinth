@@ -6,9 +6,15 @@ module.exports = function(config) {
   var configuration = {
     basePath: '',
     frameworks: ['mocha', 'chai'],
-    files: [ 'hyacinth.js', 'test/**/*.test.js' ],
+    files: [
+      { pattern: 'hyacinth.js', included: false, served: false },
+      'test/**/*.test.js'
+    ],
     exclude: [ '**/*.swp' ],
-    preprocessors: { },
+    preprocessors: {
+      'test/**/*.test.js': ['webpack', 'sourcemap']
+    },
+    webpack: { devtool: 'inline-source-map' },
     reporters: ['progress'],
     port: 9876,
     colors: true,
