@@ -12,7 +12,7 @@
 })(function(root, hyacinth) {
   "use strict";
 
-  hyacinth.version = "0.1.0";
+  hyacinth.version = "0.2.0";
 
   function Event(name) {
     this.type = name;
